@@ -1,0 +1,15 @@
+.eggs/
+.idea/
+.vscode/
+*.swp
+*.bak
+*.csv
+build/
+dist/
+.env/
+pyte.egg-info/
+pyte/
+rogue
+rogue.scr
+__pycache__
+rogue.scr

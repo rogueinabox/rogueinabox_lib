@@ -181,7 +181,7 @@ class StatisticBalance2RandomPickHM(HistoryManager):
         return True if an item was added, False otherwise
         """
         item_added = False
-        if reward > 0 or (reward < 0 and random.random() < 0.2) or reward < -0.5:
+        if reward >= 0 or (reward < 0 and random.random() < 0.2) or reward < -0.5:
             self._history.appendleft((old_state, action_index, reward, new_state, terminal))
             item_added = True
         if len(self._history) > self.histsize:

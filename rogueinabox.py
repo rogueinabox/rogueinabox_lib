@@ -33,6 +33,7 @@ import json
 
 
 TEST_RUN = 500
+MONSTERS = ["QWERTYUIOPASDFGHJKLZXCVBNM"]
 class Terminal:
     def __init__(self, columns, lines):
         self.screen = pyte.DiffScreen(columns, lines)
@@ -67,62 +68,81 @@ def open_terminal(command="bash", columns=80, lines=24):
     return Terminal(columns, lines), p_pid, p_out
 
 
-class StateGenerator:
+class StateManager:
 
-    def __init__(self, screen, value=255):
-        self.positions = self.parse_screen(screen)
+    def __init__(self):
+        self._room = []
+        self._corridor = []
+        self._door = []
+        self._rogue = None
+        self._stairs = None
+
+
+    def reset(self, screen=None):
+        self._room = []
+        self._corridor = []
+        self._door = []
+        self._rogue = None
+        self._stairs = []
+        if screen:
+            self.update(screen)
+
+
+
+    def update(self, screen):
+        for i, j in itertools.product(range(1, 23), range(80)):
+            tile = screen[i][j]
+            # i and j are screen coordinates
+            # x and y are state coordinates; states have 2 less rows (one from top and one from bottom of the screen)
+            x = i-1
+            y = j
+
+            if tile in '.:?!*+])=/%' and not (x,y) in self._room:
+                self._room.append((x,y))
+
+            #if tile in MONSTERS:
+            #    adj = [(i+1,j), (i-1,j), (i,j-1), (i,j+1)]
+            
+
+            if tile == '#' and not (x,y) in self._corridor:
+                self._corridor.append((x,y))
+
+            if tile == '+' and not (x,y) in self._door:
+                self._door.append((x,y))
+
+            if tile == '@':
+                self._rogue = (x,y)
+
+            if tile == '%':
+                self._stairs = (x,y) 
+
 
     def set_layer(self, layer, positions, state, value=255):
         for pos in positions:
             if pos:
                 i, j = pos
-                state[layer][i - 1][j] = value
+                state[layer][i][j] = value
 
     @property
     def rogue(self):
-        return self.positions["player_pos"]
+        return self._rogue
 
     @property
     def room(self):
-        return self.positions["room_pos"]
+        return self._room
 
     @property
     def corridor(self):
-        return self.positions["corridor_pos"]
+        return self._corridor
 
     @property
     def door(self):
-        return self.positions["doors_pos"]
+        return self._door
 
     @property
     def stairs(self):
-        return self.positions["stairs_pos"]
+        return self._stairs
 
-    def parse_screen(self, screen):
-        positions = {}
-        positions["stairs_pos"] = []
-        positions["player_pos"] = []
-        positions["room_pos"] = []
-        positions["corridor_pos"] = []
-        positions["doors_pos"] = []
-        for i, j in itertools.product(range(1, 23), range(80)):
-            pixel = screen[i][j]
-            if pixel not in '|- ':
-                if pixel == '#':
-                    positions["corridor_pos"].append((i, j))
-                else:
-                    positions["room_pos"].append((i, j))
-
-                if pixel == '+':
-                    positions["doors_pos"].append((i, j))
-
-                if pixel == '@':
-                    positions["player_pos"].append((i, j))
-
-                if pixel == "%":
-                    positions["stairs_pos"].append((i, j))
-        return positions
-    
 
 
 class RogueBox:
@@ -147,18 +167,20 @@ class RogueBox:
         # can be indexed as a 24x80 matrix
         self.screen = []
         self.stairs_pos = None
-        self.player_pos = None
+        #self.player_pos = None
         self.past_positions = []
         self.test = configs["test"]
+        self.state = StateManager()
         time.sleep(0.5)
         if not self.is_running():
             print("Could not find the executable in %s." % self.rogue_path)
             exit()
         self._update_screen()
-        try:
-            self._update_player_pos()
-        except:
-            pass
+        self.state.update(self.screen)
+        #try:
+            #self._update_player_pos()
+        #except:
+            #pass
         self.parse_statusbar_re = self._compile_statusbar_re()
         #self.reward_generator = getattr(rewards, self.configs["reward_generator"])(self)
 
@@ -181,6 +203,9 @@ class RogueBox:
             self.terminal.feed(update)
             self.screen = self.terminal.read()
 
+    @property
+    def player_pos(self):
+        return self.state.rogue
 
     # get info methods
 
@@ -268,7 +293,12 @@ class RogueBox:
         else:
             return False
 
+    def currently_in_corridor(self):
+        return self.state.rogue in self.state.corridor #or self.state.rogue in self.state.door
 
+    def currently_in_door(self):
+        return self.state.rogue in self.state.door
+    
     def in_corridor(self, screen, ppos):
         if not ppos:
             return False
@@ -322,6 +352,7 @@ class RogueBox:
     def send_command(self, command, stride=1):
         """send a command to rogue"""
         old_screen = self.screen[:]
+        lvl = self.get_stat("dungeon_level")
         if stride > 1 and stride < 10 and command in self.get_actions():
             self.pipe.write(str(stride).encode())
         self.pipe.write(command.encode())
@@ -334,10 +365,19 @@ class RogueBox:
             # because dismiss_message() calls send_command() again
             self._dismiss_message()
         new_screen = self.screen[:]
-        self._update_stairs_pos(old_screen, new_screen)
-        self._update_player_pos()
-        self._update_past_positions(old_screen, new_screen)
+
         terminal = self.game_over()
+        if terminal:
+            self.state.reset()
+        elif self.get_stat("dungeon_level") > lvl:
+            self.state.reset(new_screen)
+        else:
+            self.state.update(new_screen)
+
+        self._update_stairs_pos(old_screen, new_screen)
+        #self._update_player_pos()
+        self._update_past_positions(old_screen, new_screen)
+
         #if self.reward_generator.objective_achieved or self.state_generator.need_reset:
             #terminal = True
 
@@ -417,15 +457,15 @@ class RogueBox:
                 if pixel == "%":
                     self.stairs_pos = (i, j)
 
-    def _update_player_pos(self):
-        found = False
-        for i, j in itertools.product(range(1, 23), range(80)):
-            pixel = self.screen[i][j]
-            if pixel == "@":
-                found = True
-                self.player_pos = (i, j)
-        if not found:
-            self.player_pos = None
+    #def _update_player_pos(self):
+        #found = False
+        #for i, j in itertools.product(range(1, 23), range(80)):
+            #pixel = self.screen[i][j]
+            #if pixel == "@":
+                #found = True
+                #self.player_pos = (i, j)
+        #if not found:
+            #self.player_pos = None
 
 
     def _update_past_positions(self, old_screen, new_screen):

@@ -17,7 +17,9 @@
 
 from abc import ABC, abstractmethod
 from rogueinabox.utils import SaveManager, MultiSaveManager
-
+import datetime
+import numpy as np
+import json
 
 class LoweringMeanSentence(Exception):
     """The mean is lower, this is bad!"""
@@ -77,6 +79,63 @@ class Judge(ABC):
         """Return the current agent. Sometimes this must be determined every step, hence the function."""
         return self.agent
 
+
+class BaseJudge(Judge):
+
+    def __init__(self, agent, mean_sample=100, train=False):
+        super().__init__(agent)
+        self.train = train
+        self.mean_sample = mean_sample
+        self.moves = 0
+        self.run_counter = 0
+        self.test_stats = {
+                    "success" : 0, #percentuale di successi
+                    "tiles" : [],  #tiles scoperte in media
+                    "moves" : []   #numero medio di mosse per scendere
+        }
+
+
+    def hook_after_action(self):
+        if self.train:
+            return
+
+        self.moves += 1
+        lvl = self.rb.get_stat("dungeon_level")
+        if self.rb.get_stat("status") in ["Hungry", "Weak", "Faint"] or self.rb.game_over() or self.moves >= 500:
+            # a random agent usually terminates in < 400 moves
+            self.test_stats["tiles"].append(self.rb.count_passables())
+            print("terminated run number {}".format(self.run_counter))
+            self.moves = 0
+            self.run_counter += 1
+            self.rb.reset()
+        elif lvl and int(lvl) > 1:
+            self.test_stats["success"] += 1
+            self.test_stats["tiles"].append(self.rb.count_passables())
+            self.test_stats["moves"].append(self.moves)
+            self.moves = 0
+            print("terminated run number {}".format(self.run_counter))
+            self.run_counter += 1
+            self.rb.reset()
+
+        if self.run_counter >= self.mean_sample:
+            self.rb.quit_the_game()
+            self.test_stats["success"] /= self.run_counter
+            if not self.test_stats["tiles"]:
+                self.test_stats["tiles"] = [0]
+            if not self.test_stats["moves"]:
+                self.test_stats["moves"] = [0]
+            self.test_stats["tiles"] = np.mean(self.test_stats["tiles"])
+            self.test_stats["moves"] = np.mean(self.test_stats["moves"])
+            now = datetime.datetime.now()
+            with open("test_result_{}-{}-{}.json".format(now.hour, now.minute, now.second), "w") as f:
+                json.dump(self.test_stats, f, indent=4)
+            exit()
+
+    def hook_before_action(self):
+        pass
+
+    def hook_game_over(self):
+        pass
 
 class SimpleExplorationJudge(Judge):
     """An exploration based Judge: its scoring is based on the number of tiles discovered by the rogue.
@@ -143,14 +202,23 @@ class ImpatientTrait:
 
     def __init__(self, *args, **kwargs):
         super(ImpatientTrait, self).__init__(*args, **kwargs)
+        self.old_screen = self.rb.get_screen()
         self.patience_moves = 0
         self.old_passable = 0
         self.patience = self.agent.configs["patience"]
         self.impatient = self.agent.configs["impatient"]
         self.agent.configs["impatient"] = True
 
+    def hook_before_action(self):
+        super().hook_before_action()
+        self.old_screen = self.rb.get_screen()
+        self.old_level = self.rb._get_stat_from_screen("dungeon_level", self.old_screen)
+
+
     def hook_after_action(self):
         super().hook_after_action()
+        self.screen = self.rb.get_screen()
+        self.level = self.rb._get_stat_from_screen("dungeon_level", self.screen)
         if self.impatient:
             passable = self.rb._count_passables_in_screen(self.old_screen)
             if self.level is not None:
@@ -169,11 +237,11 @@ class ImpatientTrait:
                 self.patience_moves = 0
 
 
-class ImpatientSimpleExplorationJudge(ImpatientTrait, SimpleExplorationJudge):
+class ImpatientSimpleExplorationJudge(ImpatientTrait, BaseJudge):
     """A simple exploration judge that interrupts the agent if it goes in a loop."""
 
 
-class MultiImpatientSimpleExplorationJudge(ImpatientTrait, SimpleExplorationJudge):
+class MultiImpatientSimpleExplorationJudge(ImpatientTrait, BaseJudge):
     """A simple exploration judge that interrupts the agent if it goes in a loop."""
 
     def __init__ (self, *args, **kwargs):

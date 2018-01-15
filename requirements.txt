@@ -1,5 +1,6 @@
 git+https://github.com/selectel/pyte.git@211541f649c0e8c19a1575ae1ee1c33d6f6f4180
 tensorflow
+theano==0.9.0
 keras
 h5py
 scipy

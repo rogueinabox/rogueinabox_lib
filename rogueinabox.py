@@ -83,7 +83,7 @@ class StateManager:
         self._corridor = []
         self._door = []
         self._rogue = None
-        self._stairs = []
+        self._stairs = None
         if screen:
             self.update(screen)
 
@@ -93,8 +93,8 @@ class StateManager:
         for i, j in itertools.product(range(1, 23), range(80)):
             tile = screen[i][j]
             # i and j are screen coordinates
-            # x and y are state coordinates; states have 2 less rows (one from top and one from bottom of the screen)
-            x = i-1
+            # x and y are state coordinates (same thing for now)
+            x = i
             y = j
 
             if tile in '.:?!*+])=/%' and not (x,y) in self._room:
@@ -121,7 +121,7 @@ class StateManager:
         for pos in positions:
             if pos:
                 i, j = pos
-                state[layer][i][j] = value
+                state[layer][i-1][j] = value
 
     @property
     def rogue(self):
@@ -148,15 +148,6 @@ class StateManager:
 class RogueBox:
     """Start a rogue game and expose interface to communicate with it"""
     #init methods
-    moves = 0
-    run_counter = 0
-    test_stats = {
-                "success" : 0, #percentuale di successi
-                "tiles" : [],  #tiles scoperte in media
-                "moves" : []   #numero medio di mosse per scendere
-    }
-
-
     def __init__(self, configs):
         """start rogue and get initial screen"""
         self.configs = configs
@@ -169,7 +160,6 @@ class RogueBox:
         self.stairs_pos = None
         #self.player_pos = None
         self.past_positions = []
-        self.test = configs["test"]
         self.state = StateManager()
         time.sleep(0.5)
         if not self.is_running():
@@ -367,9 +357,10 @@ class RogueBox:
         new_screen = self.screen[:]
 
         terminal = self.game_over()
+        new_lvl = self.get_stat("dungeon_level")
         if terminal:
             self.state.reset()
-        elif self.get_stat("dungeon_level") > lvl:
+        elif new_lvl > lvl:
             self.state.reset(new_screen)
         else:
             self.state.update(new_screen)
@@ -380,42 +371,6 @@ class RogueBox:
 
         #if self.reward_generator.objective_achieved or self.state_generator.need_reset:
             #terminal = True
-
-        if self.test and command in self.get_actions():
-            self.moves += 1
-            lvl = self.get_stat("dungeon_level")
-            if self.get_stat("status") in ["Hungry", "Weak", "Faint"] or self.game_over() or self.moves >= 500:
-                # a random agent usually terminates in < 400 moves
-                self.test_stats["tiles"].append(self.count_passables())
-                print("terminated run number {}".format(self.run_counter))
-                self.moves = 0
-                self.run_counter += 1
-                self.reset()
-                terminal = True
-            elif lvl and int(lvl) > 1:
-                self.test_stats["success"] += 1
-                self.test_stats["tiles"].append(self.count_passables())
-                self.test_stats["moves"].append(self.moves)
-                self.moves = 0
-                terminal = True
-                print("terminated run number {}".format(self.run_counter))
-                self.run_counter += 1
-                self.reset()
-                terminal = True
-
-            if self.run_counter >= TEST_RUN:
-                self.quit_the_game()
-                self.test_stats["success"] /= self.run_counter
-                if not self.test_stats["tiles"]:
-                    self.test_stats["tiles"] = [0]
-                if not self.test_stats["moves"]:
-                    self.test_stats["moves"] = [0]
-                self.test_stats["tiles"] = np.mean(self.test_stats["tiles"])
-                self.test_stats["moves"] = np.mean(self.test_stats["moves"])
-                now = datetime.datetime.now()
-                with open("test_result_{}-{}-{}.json".format(now.hour, now.minute, now.second), "w") as f:
-                    json.dump(self.test_stats, f, indent=4)
-                exit()
 
         return (old_screen, new_screen), terminal
 

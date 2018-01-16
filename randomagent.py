@@ -6,7 +6,7 @@ class RandomAgent():
     configuration_manager_style = "single"
 
     def __init__(self, configs):
-        self.rb = RogueBox(configs)
+        self.rb = RogueBox(configs["rogue"])
         self.configs = configs
         self._pending_action_timer = None
         self.ui = UIManager.init(configs["userinterface"], self.rb)

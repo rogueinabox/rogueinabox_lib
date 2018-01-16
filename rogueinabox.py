@@ -15,25 +15,23 @@
 #You should have received a copy of the GNU General Public License
 #along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+import sys
 import time
 import os
 import fcntl
 import pty
 import signal
 import shlex
-import datetime
 import pyte
 import re
 import numpy as np
 import itertools
 import scipy
-import json
+import copy
 
-#from rogueinabox import states
+from parser import RogueParser
+from evaluator import RogueEvaluator
 
-
-TEST_RUN = 500
-MONSTERS = ["QWERTYUIOPASDFGHJKLZXCVBNM"]
 class Terminal:
     def __init__(self, columns, lines):
         self.screen = pyte.DiffScreen(columns, lines)
@@ -45,7 +43,6 @@ class Terminal:
 
     def read(self):
         return self.screen.display
-
 
 def open_terminal(command="bash", columns=80, lines=24):
     p_pid, master_fd = pty.fork()
@@ -68,111 +65,45 @@ def open_terminal(command="bash", columns=80, lines=24):
     return Terminal(columns, lines), p_pid, p_out
 
 
-class StateManager:
-
-    def __init__(self):
-        self._room = []
-        self._corridor = []
-        self._door = []
-        self._rogue = None
-        self._stairs = None
-
-
-    def reset(self, screen=None):
-        self._room = []
-        self._corridor = []
-        self._door = []
-        self._rogue = None
-        self._stairs = None
-        if screen:
-            self.update(screen)
-
-
-
-    def update(self, screen):
-        for i, j in itertools.product(range(1, 23), range(80)):
-            tile = screen[i][j]
-            # i and j are screen coordinates
-            # x and y are state coordinates (same thing for now)
-            x = i
-            y = j
-
-            if tile in '.:?!*+])=/%' and not (x,y) in self._room:
-                self._room.append((x,y))
-
-            #if tile in MONSTERS:
-            #    adj = [(i+1,j), (i-1,j), (i,j-1), (i,j+1)]
-            
-
-            if tile == '#' and not (x,y) in self._corridor:
-                self._corridor.append((x,y))
-
-            if tile == '+' and not (x,y) in self._door:
-                self._door.append((x,y))
-
-            if tile == '@':
-                self._rogue = (x,y)
-
-            if tile == '%':
-                self._stairs = (x,y) 
-
-
-    def set_layer(self, layer, positions, state, value=255):
-        for pos in positions:
-            if pos:
-                i, j = pos
-                state[layer][i-1][j] = value
-
-    @property
-    def rogue(self):
-        return self._rogue
-
-    @property
-    def room(self):
-        return self._room
-
-    @property
-    def corridor(self):
-        return self._corridor
-
-    @property
-    def door(self):
-        return self._door
-
-    @property
-    def stairs(self):
-        return self._stairs
-
-
-
 class RogueBox:
+    @staticmethod
+    def get_actions():
+        """return the list of actions"""
+        # h, j, k, l: ortogonal moves
+        # y, u, b, n: diagonal moves
+        # >: go downstairs
+        # return ['h', 'j', 'k', 'l', '>', 'y', 'u', 'b', 'n']
+        return ['h', 'j', 'k', 'l', '>']
+    
     """Start a rogue game and expose interface to communicate with it"""
-    #init methods
-    def __init__(self, configs):
-        """start rogue and get initial screen"""
-        self.configs = configs
-        self.rogue_path = self.configs["rogue"]
-        self.memory_size = self.configs["memory_size"]
+    def __init__(self, game_exe_path="rogue", mem_size=-1):
+        self.rogue_path = game_exe_path
+        self.memory_size = mem_size
+        self.parser = RogueParser()
+        self.evaluator = RogueEvaluator()
         self.terminal, self.pid, self.pipe = open_terminal(command=self.rogue_path)
         # our internal screen is list of lines, each line is a string
         # can be indexed as a 24x80 matrix
         self.screen = []
         self.stairs_pos = None
-        #self.player_pos = None
         self.past_positions = []
-        self.state = StateManager()
-        time.sleep(0.5)
+        self.frame_info = []
+        
+        self.parser.reset()
+
         if not self.is_running():
             print("Could not find the executable in %s." % self.rogue_path)
             exit()
+        
+        # wait until the rogue spawns
+        self.screen = self.get_empty_screen()
+        while  not ('Hp:' in self.screen[-1]):
+            self._update_screen()
+
         self._update_screen()
-        self.state.update(self.screen)
-        #try:
-            #self._update_player_pos()
-        #except:
-            #pass
+        self.frame_info.append( self.parser.parse_screen( self.screen ) )
         self.parse_statusbar_re = self._compile_statusbar_re()
-        #self.reward_generator = getattr(rewards, self.configs["reward_generator"])(self)
+
 
     @staticmethod
     def _compile_statusbar_re():
@@ -183,8 +114,11 @@ class RogueBox:
                 Str:\s*(?P<current_strength>\d*)\((?P<max_strength>\d*)\)\s*
                 Arm:\s*(?P<armor>\d*)\s*
                 Exp:\s*(?P<exp_level>\d*)/(?P<tot_exp>\d*)\s*
-                (?P<status>(Hungry|Weak|Faint)?)\s*""", re.VERBOSE)
+                (?P<status>(Hungry|Weak|Faint)?)\s*
+                (Cmd:\s*(?P<command_count>\d*))?""", re.VERBOSE)
         return parse_statusbar_re
+
+
 
     def _update_screen(self):
         """update the virtual screen and the class variable"""
@@ -192,10 +126,20 @@ class RogueBox:
         if update:
             self.terminal.feed(update)
             self.screen = self.terminal.read()
+            
+    def get_empty_screen(self):
+        screen = list()
+        for row in range(24):
+            value = ""
+            for col in range(80):
+                value += " "
+            screen.append(value)
+        return screen
+
 
     @property
     def player_pos(self):
-        return self.state.rogue
+        return self.frame_info[-1].get_list_of_positions_by_tile("@")[0]
 
     # get info methods
 
@@ -246,6 +190,7 @@ class RogueBox:
             answer = parsed_status_bar.groupdict()[stat]
         return answer
 
+
     def get_screen_string(self):
         """return the screen as a single string with \n at EOL"""
         out = ""
@@ -254,13 +199,20 @@ class RogueBox:
             out += '\n'
         return out
 
-    def game_over(self):
+    def game_over(self, screen=None):
         """check if we are at the game over screen (tombstone)"""
+        if not screen:
+            screen = self.screen
         # look for tombstone
-        for line in self.screen:
+        for line in screen:
             if '_______)' in line or 'You quit' in line:
                 return True
         return False
+
+    def print_screen(self):
+        """print the current screen"""
+        print(*self.screen, sep='\n')
+
 
     def is_map_view(self, screen):
         """return True if the current screen is the dungeon map, False otherwise"""
@@ -284,96 +236,13 @@ class RogueBox:
             return False
 
     def currently_in_corridor(self):
-        return self.state.rogue in self.state.corridor #or self.state.rogue in self.state.door
+        info = self.frame_info[-1]
+        return info.get_list_of_positions_by_tile("@")[0] in info.get_list_of_positions_by_tile("#")
 
     def currently_in_door(self):
-        return self.state.rogue in self.state.door
+        info = self.frame_info[-1]
+        return info.get_list_of_positions_by_tile("@")[0] in info.get_list_of_positions_by_tile("+")
     
-    def in_corridor(self, screen, ppos):
-        if not ppos:
-            return False
-
-        res = False
-
-        #the player is in a corridor if one or more adjacent tiles are corridor
-        # and there are no '.'
-        # standing on a door != being in a corridor
-        for i in range(ppos[0]-1, ppos[0]+2):
-            for j in range(ppos[1]-1,ppos[1]+2):
-                try:
-                    if screen[i][j] == '.':
-                        return False
-                    if screen[i][j] == '#':
-                        res = True
-                except IndexError:
-                    continue
-
-        return res
-
-    def in_corridor_door(self, screen, ppos):
-        if not ppos:
-            return False
-
-        real = (ppos[0], ppos[1])
-        for i, row in enumerate(screen):
-            for j, col in enumerate(screen[i]):
-                if screen[i][j] == '@':
-                    real = (i,j)
-
-        if real != ppos:
-            print("stop here")
-            pass
-
-        #the player is in a corridor if one or more adjacent tiles are corridor
-        # standing on a door == being in a corridor
-        for i in range(ppos[0]-1, ppos[0]+2):
-            for j in range(ppos[1]-1,ppos[1]+2):
-                try:
-                    if screen[i][j] == '#':
-                        return True
-                except IndexError:
-                    continue
-
-        return False
-
-
-    # interact with rogue methods
-        
-    def send_command(self, command, stride=1):
-        """send a command to rogue"""
-        old_screen = self.screen[:]
-        lvl = self.get_stat("dungeon_level")
-        if stride > 1 and stride < 10 and command in self.get_actions():
-            self.pipe.write(str(stride).encode())
-        self.pipe.write(command.encode())
-        if command in self.get_actions():
-            self.pipe.write('\x12'.encode())
-        time.sleep(0.01)
-        self._update_screen()
-        if self._need_to_dismiss():
-            # will dismiss all upcoming messages,
-            # because dismiss_message() calls send_command() again
-            self._dismiss_message()
-        new_screen = self.screen[:]
-
-        terminal = self.game_over()
-        new_lvl = self.get_stat("dungeon_level")
-        if terminal:
-            self.state.reset()
-        elif new_lvl > lvl:
-            self.state.reset(new_screen)
-        else:
-            self.state.update(new_screen)
-
-        self._update_stairs_pos(old_screen, new_screen)
-        #self._update_player_pos()
-        self._update_past_positions(old_screen, new_screen)
-
-        #if self.reward_generator.objective_achieved or self.state_generator.need_reset:
-            #terminal = True
-
-        return (old_screen, new_screen), terminal
-
 
     def _dismiss_message(self):
         """dismiss a rogue status message.
@@ -411,16 +280,6 @@ class RogueBox:
                 pixel = new_screen[i][j]
                 if pixel == "%":
                     self.stairs_pos = (i, j)
-
-    #def _update_player_pos(self):
-        #found = False
-        #for i, j in itertools.product(range(1, 23), range(80)):
-            #pixel = self.screen[i][j]
-            #if pixel == "@":
-                #found = True
-                #self.player_pos = (i, j)
-        #if not found:
-            #self.player_pos = None
 
 
     def _update_past_positions(self, old_screen, new_screen):
@@ -465,7 +324,7 @@ class RogueBox:
         except:
             pass
         try:
-            self.__init__(self.configs)
+            self.__init__(self.rogue_path, self.memory_size)
         except:
             self.reset()
 
@@ -475,3 +334,56 @@ class RogueBox:
         self.send_command('Q')
         self.send_command('y')
         self.send_command('\n')
+
+
+    def get_last_frame(self):
+        return self.frame_info[-1]
+
+    # interact with rogue methods
+    def send_command(self, command):
+        """send a command to rogue"""
+        old_screen = self.screen[:]
+        lvl = self.get_stat("dungeon_level")
+        self.pipe.write(command.encode())
+        if command in self.get_actions():
+            self.pipe.write('\x12'.encode())
+
+        if self.get_stat("command_count"):
+            new_screen = old_screen
+            while old_screen[-1] == new_screen[-1]: # after a command execution, the new screen is always different from the old one
+                self._update_screen()
+                while self._need_to_dismiss(): # will dismiss all upcoming messages
+                    self._dismiss_message()
+                    self._update_screen()
+                new_screen = self.screen
+        else:
+            time.sleep(0.01)
+            self._update_screen()
+            if self._need_to_dismiss():
+                # will dismiss all upcoming messages,
+                # because dismiss_message() calls send_command() again
+                self._dismiss_message()
+            new_screen = self.screen[:]
+
+
+        terminal = self.game_over(new_screen)
+        new_lvl = self.get_stat("dungeon_level")
+
+        self._update_stairs_pos(old_screen, new_screen)
+        #self._update_player_pos()
+        self._update_past_positions(old_screen, new_screen)
+
+        if not terminal:
+            if not self.frame_info:
+                self.frame_info.append( self.parser.parse_screen( old_screen ) )
+            self.frame_info.append( self.parser.parse_screen( new_screen ) )
+            
+            #self.step_count += 1
+            #lose = self.step_count > self.max_step_count or self.state_generator.need_reset
+        
+        #win = self.reward_generator.goal_achieved
+        #if win or lose:
+            #self.evaluator.add( info = self.frame_info[-1], reward = self.episode_reward, has_won = win, step = self.step_count )
+        #return self.reward, self.state, win or lose
+
+        return (old_screen, new_screen), terminal

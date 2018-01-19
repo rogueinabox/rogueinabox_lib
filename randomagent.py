@@ -6,7 +6,7 @@ class RandomAgent():
     configuration_manager_style = "single"
 
     def __init__(self, configs):
-        self.rb = RogueBox(configs["rogue"])
+        self.rb = RogueBox(configs["rogue"], 500, state_generator="SingleLayer_StateGenerator", reward_generator="StairSeeker_23_RewardGenerator")
         self.configs = configs
         self._pending_action_timer = None
         self.ui = UIManager.init(configs["userinterface"], self.rb)
@@ -26,7 +26,7 @@ class RandomAgent():
     def act(self):
         actions = self.rb.get_actions()
         action = random.choice(actions)
-        screen_transition, terminal = self.rb.send_command(action)
+        _,__, terminal = self.rb.send_command(action)
         return terminal
 
     def _keypress_callback(self, event):

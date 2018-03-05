@@ -1,23 +1,24 @@
-#Copyright (C) 2017 Andrea Asperti, Carlo De Pieri, Gianmaria Pedrini
+# Copyright (C) 2017 Andrea Asperti, Carlo De Pieri, Gianmaria Pedrini
 #
-#This file is part of Rogueinabox.
+# This file is part of Rogueinabox.
 #
-#Rogueinabox is free software: you can redistribute it and/or modify
-#it under the terms of the GNU General Public License as published by
-#the Free Software Foundation, either version 3 of the License, or
-#(at your option) any later version.
+# Rogueinabox is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
 #
-#Rogueinabox is distributed in the hope that it will be useful,
-#but WITHOUT ANY WARRANTY; without even the implied warranty of
-#MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#GNU General Public License for more details.
+# Rogueinabox is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
 #
-#You should have received a copy of the GNU General Public License
-#along with this program.  If not, see <http://www.gnu.org/licenses/>.
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import curses
 import time
-from ui.UI import UI
+from .UI import UI
+
 
 class Event(object):
     """the event to return to a key press callback"""
@@ -27,6 +28,7 @@ class Event(object):
 
 class UICurse(UI):
     """"""
+
     def __init__(self, rogue):
         """Constructor for UITk"""
         super().__init__(rogue)
@@ -48,7 +50,12 @@ class UICurse(UI):
         # using a pad instead of the default win, it's safer
         self.stdscr = curses.newpad(rogue_height, rogue_width)
         self.stdscr.nodelay(True)
-        curses.curs_set(False)
+        try:
+            # disable cursor
+            # on some terminals this may fail
+            curses.curs_set(False)
+        except curses.error:
+            pass
         self.draw_from_rogue()
         minlogsize = 4
         if curses.LINES - 1 >= rogue_height + minlogsize:
@@ -70,7 +77,7 @@ class UICurse(UI):
     def on_timer_end(self, timer, callback):
         """TODO docs"""
         self.timer_callback = callback
-        self.sleep_time = timer/1000
+        self.sleep_time = timer / 1000
         return True
 
     def cancel_timer(self, timer):
@@ -86,24 +93,24 @@ class UICurse(UI):
         screen = self.rb.get_screen()
         for y, line in enumerate(screen, 2):
             self.stdscr.addstr(y, 0, line)
-        self.stdscr.refresh(2,0, 0, 0, curses.LINES - 1, curses.COLS - 1)
+        self.stdscr.refresh(2, 0, 0, 0, curses.LINES - 1, curses.COLS - 1)
 
     def draw_log(self, string):
         """Draw some logs on the screen"""
         if self.logpad is not None and not self.rb.game_over():
             limit = curses.LINES - self.startlog - 3
             self.logpad.addstr(0, 0, "  LOGS")
-            self.logpad.hline(1,0, "-", curses.COLS - 1)
-            self.logpad.hline(limit + 1,0, "-", curses.COLS - 1)
+            self.logpad.hline(1, 0, "-", curses.COLS - 1)
+            self.logpad.hline(limit + 1, 0, "-", curses.COLS - 1)
             if self.loglines > limit:
                 self.logpad.move(2, 0)
                 self.logpad.deleteln()
                 self.logpad.move(self.loglines - 1, 0)
                 self.logpad.clrtoeol()
                 self.logpad.addstr(self.loglines - 1, 0, string)
-                self.logpad.hline(limit + 1,0, "-", curses.COLS - 1)
+                self.logpad.hline(limit + 1, 0, "-", curses.COLS - 1)
             else:
                 self.logpad.addstr(self.loglines, 0, string)
             if self.loglines <= limit:
                 self.loglines += 1
-            self.logpad.refresh(0,0, self.startlog, 0, curses.LINES - 1, curses.COLS - 1)
+            self.logpad.refresh(0, 0, self.startlog, 0, curses.LINES - 1, curses.COLS - 1)

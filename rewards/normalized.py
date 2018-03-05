@@ -1,0 +1,75 @@
+from .base import RewardGenerator
+
+
+class Normalised_RewardGenerator(RewardGenerator):
+    """Generate a reward for the last action, mapped from [-500,500] to [-1,1]:
+        +250 for descending the stairs
+        +10 for each new door discovered
+        -1 for standing still
+    """
+
+    def normalize_value(self, reward):
+        return self.remap(reward, 500, 1)  # from [-500,500] to [-1,1]
+
+    def get_value(self, frame_history):
+        old_info = frame_history[-2]
+        new_info = frame_history[-1]
+        if new_info.statusbar["dungeon_level"] > old_info.statusbar["dungeon_level"]:
+            self.goal_achieved = True
+            return 250
+        elif new_info.get_tile_count("+") > old_info.get_tile_count("+"):  # doors
+            return 10
+        elif self.player_standing_still(old_info, new_info):  # standing reward
+            return -1
+        return 0
+
+
+class Normalised_2_RewardGenerator(RewardGenerator):
+    """Generate a reward for the last action, mapped from [-500,500] to [-1,1]:
+        +250 for descending the stairs
+        +10 for each new door discovered
+        +1 for each new corridor tile discovered
+        -1 for standing still
+    """
+
+    def normalize_value(self, reward):
+        return self.remap(reward, 500, 1)  # from [-500,500] to [-1,1]
+
+    def get_value(self, frame_history):
+        old_info = frame_history[-2]
+        new_info = frame_history[-1]
+        if new_info.statusbar["dungeon_level"] > old_info.statusbar["dungeon_level"]:
+            self.goal_achieved = True
+            return 250
+        elif new_info.get_tile_count("+") > old_info.get_tile_count("+"):  # doors
+            return 10
+        elif new_info.get_tile_count("#") > old_info.get_tile_count("#"):  # passages
+            return 1
+        elif self.player_standing_still(old_info, new_info):  # standing reward
+            return -1
+        return 0
+
+
+class Normalised_3_RewardGenerator(RewardGenerator):
+    """Generate a reward for the last action, mapped from [-500,500] to [-1,1]:
+        +250 for descending the stairs
+        +10 for each new door discovered
+        +5 for each new corridor tile discovered
+        -5 for standing still
+    """
+
+    def normalize_value(self, reward):
+        return self.remap(reward, 2500, 1)  # from [-2500,2500] to [-1,1]
+
+    def get_value(self, frame_history):
+        old_info = frame_history[-2]
+        new_info = frame_history[-1]
+        if new_info.statusbar["dungeon_level"] > old_info.statusbar["dungeon_level"]:
+            self.goal_achieved = True
+            return 250
+        elif new_info.get_tile_count("+") > old_info.get_tile_count("+"):  # doors
+            return 10
+        elif new_info.get_tile_count("#") > old_info.get_tile_count("#"):  # passages
+            return 5
+        elif self.player_standing_still(old_info, new_info):  # standing reward
+            return -5

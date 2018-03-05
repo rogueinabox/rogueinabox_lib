@@ -1,0 +1,3 @@
+[submodule "rogue"]
+	path = rogue
+	url = https://gitlab.com/rogueinabox/rogue

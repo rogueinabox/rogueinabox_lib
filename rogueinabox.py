@@ -387,9 +387,9 @@ class RogueBox:
         # parallel to it the count is increased by 2
         while new_cmd_count < expected_cmd_count:
             self._update_screen()
-            if self._need_to_dismiss() and self.refresh_after_commands:
-                # if a monster is attacked and killed, the command count will only increase by one even if the
-                # refresh command was sent
+            if self.refresh_after_commands and self._need_to_dismiss():
+                # if the refresh command is sent when a dismissable "...--More--" message is on screen, then
+                # the cmd count will not increase
                 expected_cmd_count -= 1
             self._dismiss_all_messages()
             if self.game_over():

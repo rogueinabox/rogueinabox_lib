@@ -22,17 +22,34 @@ from abc import ABC, abstractmethod
 # ABSTRACT CLASSES
 
 class StateGenerator(ABC):
-    def __init__(self, channels_first=False):
-        self.channels_first = channels_first
-        self._set_shape(channels_first)
+    def __init__(self, data_format=False):
+        """
+        :param str data_format:
+            "channels_first" or "channels_last"
+            represents the shape configuration, with the same meaning given by Keras, i.e.:
+                a shape with height H, width W and C channels is represented as (C, H, W) with the "channel_first"
+                option and (H, W, C) with "channels_last"
+        """
+        if data_format not in ("channels_first", "channels_last"):
+            raise ValueError('data_format should be one of "channels_first" or "channels_last", got "%s" instead' %
+                             data_format)
+        self.data_format = data_format
+        self._set_shape(data_format)
         self.reset()
 
     def reset(self):
         self.need_reset = False
 
     @abstractmethod
-    def _set_shape(self, channels_first):
-        """The implementing class MUST set the state _shape (should be a tuple)."""
+    def _set_shape(self, data_format):
+        """The implementing class MUST set the state _shape (should be a tuple), wrt the 'data_format' option
+
+        :param str data_format:
+            "channels_first" or "channels_last"
+            represents the shape configuration, with the same meaning given by Keras, i.e.:
+                a shape with height H, width W and C channels is represented as (C, H, W) with the "channel_first"
+                option and (H, W, C) with "channels_last"
+        """
         self._shape = (0, 0, 0)
 
     def get_shape(self):
@@ -71,7 +88,7 @@ class StateGenerator(ABC):
         pass
 
     def extract_channel(self, state, channel):
-        """Returns a view of the channel in the state, wrt the 'channels_first' option provided in init.
+        """Returns a view of the channel in the state, wrt the 'data_format' option provided in init.
         Assigning elements to the view will also alter the state.
 
         :param np.ndarray state:
@@ -81,7 +98,7 @@ class StateGenerator(ABC):
         :return:
             channel view
         """
-        if self.channels_first:
+        if self.data_format == "channels_first":
             return state[channel, :, :]
         else:
             return state[:, :, channel]

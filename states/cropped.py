@@ -33,7 +33,7 @@ class CroppedView_Base_StateGenerator(StateGenerator):
         :return:
             reference to state, however the assignments are made "in place"
         """
-        area = self._shape[1:] if self.channels_first else self._shape[:-1]
+        area = self._shape[1:] if self.data_format == "channels_first" else self._shape[:-1]
         centered_positions = map(lambda pos: self._get_relative_coordinates(pos, center, area), positions)
         centered_positions = filter(lambda pos: all(c >= 0 and c < a for c, a in zip(pos, area)), centered_positions)
         return self.set_channel(state, channel, centered_positions, value)
@@ -53,8 +53,8 @@ class CroppedView_TripleLayer_11x11_StateGenerator(CroppedView_Base_StateGenerat
         The rogue is not directly shown in the state.
     """
 
-    def _set_shape(self, channels_first):
-        self._shape = (3, 11, 11) if channels_first else (11, 11, 3)
+    def _set_shape(self, data_format):
+        self._shape = (3, 11, 11) if data_format == "channels_first" else (11, 11, 3)
 
     def build_state(self, info):
         state = self.empty_state()
@@ -87,8 +87,8 @@ class CroppedView_TripleLayer_17x17_StateGenerator(CroppedView_TripleLayer_11x11
         The rogue is not directly shown in the state.
     """
 
-    def _set_shape(self, channels_first):
-        self._shape = (3, 17, 17) if channels_first else (17, 17, 3)
+    def _set_shape(self, data_format):
+        self._shape = (3, 17, 17) if data_format == "channels_first" else (17, 17, 3)
 
 
 class CroppedView_SingleLayer_17x17_StateGenerator(CroppedView_Base_StateGenerator):
@@ -99,8 +99,8 @@ class CroppedView_SingleLayer_17x17_StateGenerator(CroppedView_Base_StateGenerat
         The numerical values used are different and the rogue is not directly shown in the state.
     """
 
-    def _set_shape(self, channels_first):
-        self._shape = (1, 17, 17) if channels_first else (17, 17, 1)
+    def _set_shape(self, data_format):
+        self._shape = (1, 17, 17) if data_format == "channels_first" else (17, 17, 1)
 
     def build_state(self, info):
         state = self.empty_state()

@@ -9,8 +9,8 @@ class SingleLayer_StateGenerator(StateGenerator):
         - the doors and corridors
     """
 
-    def _set_shape(self, channels_first):
-        self._shape = (1, 22, 80) if channels_first else (22, 80, 1)
+    def _set_shape(self, data_format):
+        self._shape = (1, 22, 80) if data_format == "channels_first" else (22, 80, 1)
 
     def build_state(self, info):
         state = self.empty_state()
@@ -33,8 +33,8 @@ class DoubleLayer_StateGenerator(StateGenerator):
             - the rogue
     """
 
-    def _set_shape(self, channels_first):
-        self._shape = (2, 22, 80) if channels_first else (22, 80, 2)
+    def _set_shape(self, data_format):
+        self._shape = (2, 22, 80) if data_format == "channels_first" else (22, 80, 2)
 
     def build_state(self, info):
         state = self.empty_state()
@@ -65,8 +65,8 @@ class TripleLayer_StateGenerator(StateGenerator):
         The numerical values used are the same except for the rogue.
     """
 
-    def _set_shape(self, channels_first):
-        self._shape = (3, 22, 80) if channels_first else (22, 80, 3)
+    def _set_shape(self, data_format):
+        self._shape = (3, 22, 80) if data_format == "channels_first" else (22, 80, 3)
 
     def build_state(self, info):
         state = self.empty_state()
@@ -100,7 +100,7 @@ class TripleLayer_1_StateGenerator(TripleLayer_StateGenerator):
         state = self.empty_state()
 
         # TODO: why is it useful to have identical channels?
-        n_channels = self._shape[0] if self.channels_first else self._shape[-1]
+        n_channels = self._shape[0] if self.data_format == "channels_first" else self._shape[-1]
         for c in range(n_channels):
             self.set_channel(state, c, info.get_list_of_positions_by_tile("%"), 4)  # stairs
             self.set_channel(state, c, info.get_list_of_positions_by_tile("|"), 8)  # walls
@@ -171,8 +171,8 @@ class M_P_D_S_StateGenerator(StateGenerator):
         The numerical values used are the same.
     """
 
-    def _set_shape(self, channels_first):
-        self._shape = (4, 22, 80) if channels_first else (22, 80, 4)
+    def _set_shape(self, data_format):
+        self._shape = (4, 22, 80) if data_format == "channels_first" else (22, 80, 4)
 
     def build_state(self, info):
         state = self.empty_state()

@@ -56,31 +56,34 @@ class StateGenerator(ABC):
         """Returns state shape"""
         return self._shape
 
-    def compute_state(self, info):
-        """Returns the state representation computed from the given frame info
+    def compute_state(self, frame_history):
+        """Returns the state representation computed from the given frame history
 
-        :param RogueFrameInfo info:
-            parsed screen information
+        :param list[RogueFrameInfo] frame_history:
+            list of parsed screen information
         :return:
             state representation as a dict:
             {'state': np.ndarray, 'frame_info': RogueFrameInfo}
         """
-        if self.is_frame_sufficient(info):
-            state = self.build_state(info)
+        if self.is_frame_history_sufficient(frame_history):
+            state = self.build_state(frame_history[-1], frame_history)
         else:
             state = self.empty_state()
-        return {'state': state, 'frame_info': info}
+        return {'state': state, 'frame_info': frame_history[:]}
 
-    def is_frame_sufficient(self, info):
+    def is_frame_history_sufficient(self, frame_history):
         """Return whether the frame info is sufficient to compute a state or if a default one should be provided"""
-        return info.has_statusbar()
+        current_frame = frame_history[-1]
+        return current_frame.has_statusbar()
 
     @abstractmethod
-    def build_state(self, info):
+    def build_state(self, current_frame, frame_history):
         """Returns the numpy state representation computed from the given frame info
 
-        :param RogueFrameInfo info:
-            parsed screen information
+        :param RogueFrameInfo current_frame:
+            parsed screen information of the current frame
+        :param list[RogueFrameInfo] frame_history:
+            list of parsed screen information, where current_frame == frame_history[-1]
         :return:
             state representation as a numpy ndarray
         :rtype: np.ndarray

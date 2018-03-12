@@ -193,14 +193,14 @@ class RogueBox:
         self._update_screen()
         while self.game_over(self.screen):
             self._update_screen()
-        self.frame_info = [self.parser.parse_screen(self.screen)]
+        self.frame_history = [self.parser.parse_screen(self.screen)]
 
         if self.move_rogue:
             # we move the rogue to be able to see the tile below it
             action = self.get_legal_actions()[0]
             return self.send_command(action)
         else:
-            self.state = self.compute_state(self.frame_info[0])
+            self.state = self.compute_state(self.frame_history)
 
     def reset(self):
         """Kill and restart the rogue process.
@@ -262,12 +262,12 @@ class RogueBox:
     @property
     def player_pos(self):
         """current player position"""
-        return self.frame_info[-1].get_list_of_positions_by_tile("@")[0]
+        return self.frame_history[-1].get_list_of_positions_by_tile("@")[0]
 
     @property
     def stairs_pos(self):
         """current stairs position or None if they are not visibile"""
-        stairs = self.frame_info[-1].get_list_of_positions_by_tile("%")
+        stairs = self.frame_history[-1].get_list_of_positions_by_tile("%")
         if stairs:
             return stairs[0]
         else:
@@ -307,11 +307,11 @@ class RogueBox:
         else:
             return False
 
-    def compute_state(self, new_info, state_generator=None):
+    def compute_state(self, frame_history, state_generator=None):
         """return the state representation of the current state as returned by the given or default state generator
 
-        :param frame_info.RogueFrameInfo new_info:
-            frame info from which to build the state
+        :param list[frame_info.RogueFrameInfo] frame_history:
+            frame history from which to build the state
         :param states.StateGenerator state_generator:
             state builder, if None the one supplied during init will be used
         :return:
@@ -320,7 +320,7 @@ class RogueBox:
         state_generator = state_generator or self.state_generator
         if state_generator is None:
             return None
-        return state_generator.compute_state(new_info)
+        return state_generator.compute_state(frame_history)
 
     def compute_reward(self, frame_history, reward_generator=None):
         """return the reward for a state transition using the given or default generator
@@ -339,12 +339,12 @@ class RogueBox:
 
     def currently_in_corridor(self):
         """return whether the rogue is in a corridor"""
-        info = self.frame_info[-1]
+        info = self.frame_history[-1]
         return info.get_tile_below_player() == "#"
 
     def currently_in_door(self):
         """return whether the rogue is on a door"""
-        info = self.frame_info[-1]
+        info = self.frame_history[-1]
         return info.get_tile_below_player() == '+'
 
     def _dismiss_message(self):
@@ -378,12 +378,12 @@ class RogueBox:
         self.pipe.write('\n'.encode())
 
     def get_last_frame(self):
-        return self.frame_info[-1]
+        return self.frame_history[-1]
 
     def _cmd_busy_wait(self):
         """perform busy wait on the rogue custom build with command count"""
         cmd_increment = 1 if not self.refresh_after_commands else 2
-        old_cmd_count = self.frame_info[-1].statusbar["command_count"]
+        old_cmd_count = self.frame_history[-1].statusbar["command_count"]
         expected_cmd_count = old_cmd_count + cmd_increment
         new_cmd_count = old_cmd_count
         # busy wait until the cmd count is increased
@@ -437,12 +437,10 @@ class RogueBox:
 
         lose = self.game_over(new_screen)
         if not lose:
-            self.frame_info.append(self.parser.parse_screen(new_screen))
+            self.frame_history.append(self.parser.parse_screen(new_screen))
 
-            # the reward is computed using the entire frame history
-            self.reward = self.compute_reward(self.frame_info, reward_generator=reward_generator)
-            # the state is computed only using the last frame
-            self.state = self.compute_state(self.frame_info[-1], state_generator=state_generator)
+            self.reward = self.compute_reward(self.frame_history, reward_generator=reward_generator)
+            self.state = self.compute_state(self.frame_history, state_generator=state_generator)
 
             self.step_count += 1
             self.episode_reward += self.reward
@@ -450,5 +448,5 @@ class RogueBox:
 
         win = (reward_generator and reward_generator.goal_achieved)
         if win or lose:
-            self.evaluator.add(info=self.frame_info[-1], reward=self.episode_reward, has_won=win, step=self.step_count)
+            self.evaluator.add(info=self.frame_history[-1], reward=self.episode_reward, has_won=win, step=self.step_count)
         return self.reward, self.state, win, lose

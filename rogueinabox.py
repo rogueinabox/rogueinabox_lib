@@ -204,7 +204,7 @@ class RogueBox:
             action = self.get_legal_actions()[0]
             return self.send_command(action)
         else:
-            self.state = self.compute_state(self.frame_history)
+            self.state = self.state_generator.compute_state(self.frame_history)
 
     def reset(self):
         """Kill and restart the rogue process.
@@ -298,6 +298,7 @@ class RogueBox:
         """check if we are at the game over screen (tombstone)"""
         if not screen:
             screen = self.screen
+        # TODO: this returns True also for inventory screens
         return not ('Hp:' in screen[-1])
 
     def is_running(self):
@@ -310,36 +311,6 @@ class RogueBox:
             return True
         else:
             return False
-
-    def compute_state(self, frame_history, state_generator=None):
-        """return the state representation of the current state as returned by the given or default state generator
-
-        :param list[frame_info.RogueFrameInfo] frame_history:
-            frame history from which to build the state
-        :param states.StateGenerator state_generator:
-            state builder, if None the one supplied during init will be used
-        :return:
-            state representation
-        """
-        state_generator = state_generator or self.state_generator
-        if state_generator is None:
-            return None
-        return state_generator.compute_state(frame_history)
-
-    def compute_reward(self, frame_history, reward_generator=None):
-        """return the reward for a state transition using the given or default generator
-
-        :param list[frame_info.RogueFrameInfo] frame_history:
-            frame history from which to compute the reward
-        :param rewards.RewardGenerator reward_generator:
-            reward generator, if None the one supplied during init will be used
-        :return:
-            reward
-        """
-        reward_generator = reward_generator or self.reward_generator
-        if reward_generator is None:
-            return 0
-        return reward_generator.compute_reward(frame_history)
 
     def currently_in_corridor(self):
         """return whether the rogue is in a corridor"""
@@ -437,16 +408,17 @@ class RogueBox:
             self._update_screen()
             self._dismiss_all_messages()
 
-        new_screen = self.screen
-
         self.step_count += 1
 
-        is_rogue_dead = self.game_over(new_screen)
-
+        new_screen = self.screen
         self.frame_history.append(self.parser.parse_screen(new_screen))
-        self.reward = self.compute_reward(self.frame_history, reward_generator=reward_generator)
-        self.state = self.compute_state(self.frame_history, state_generator=state_generator)
 
+        state_generator = state_generator or self.state_generator
+        reward_generator = reward_generator or self.reward_generator
+        self.reward = reward_generator.compute_reward(self.frame_history)
+        self.state = state_generator.compute_state(self.frame_history)
+
+        is_rogue_dead = self.game_over(new_screen)
         won = (reward_generator and reward_generator.goal_achieved)
         stop = self.evaluator.on_step(self.frame_history, command, self.reward, self.step_count)
         lost = (stop or is_rogue_dead) and not won

@@ -104,7 +104,7 @@ class RogueBox:
         """
         :param str game_exe_path:
             rogue executable path.
-            If None, will use the default executable in 'rogue5.4.4-ant-r1.1.4/rogue'
+            If None, will use the default executable "./rogue/rogue" in the rogue git submodule.
         :param int max_step_count:
             maximum number of steps before declaring the game lost
         :param str | states.StateGenerator state_generator:

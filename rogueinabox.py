@@ -141,11 +141,15 @@ class RogueBox:
             self.max_step_count = 1
 
         if isinstance(reward_generator, str):
+            if not hasattr(rewards, reward_generator):
+                raise ValueError('no reward generator named "%s" was found' % reward_generator)
             self.reward_generator = getattr(rewards, reward_generator)()
         else:
             self.reward_generator = reward_generator
 
         if isinstance(state_generator, str):
+            if not hasattr(states, state_generator):
+                raise ValueError('no state generator named "%s" was found' % state_generator)
             self.state_generator = getattr(states, state_generator)()
         else:
             self.state_generator = state_generator

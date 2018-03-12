@@ -99,14 +99,19 @@ class RogueBox:
         rogue_path = os.path.join(this_file_dir, 'rogue', 'rogue')
         return rogue_path
 
-    def __init__(self, game_exe_path=None, max_step_count=500, state_generator=None, reward_generator=None,
+    def __init__(self, game_exe_path=None, max_step_count=500, evaluator=None,
+                 state_generator=None, reward_generator=None,
                  refresh_after_commands=True, start_game=False, move_rogue=False):
         """
         :param str game_exe_path:
             rogue executable path.
             If None, will use the default executable "./rogue/rogue" in the rogue git submodule.
         :param int max_step_count:
-            maximum number of steps before declaring the game lost
+            maximum number of steps before declaring the game lost.
+            N.B. this is used only if parameter "evaluator" is None
+        :param RogueEvaluator evaluator:
+            agent evaluator.
+            If None, the default evaluator will be used.
         :param str | states.StateGenerator state_generator:
             default state generator.
             If string, a generator with a corresponding name will be looked for in the states module, otherwise it will
@@ -135,10 +140,8 @@ class RogueBox:
             raise ValueError('game_exe_path "%s" is not executable' % self.rogue_path)
 
         self.parser = RogueParser()
-        self.evaluator = RogueEvaluator()
-        self.max_step_count = max_step_count
-        if self.max_step_count <= 0:
-            self.max_step_count = 1
+
+        self.evaluator = evaluator if evaluator is not None else RogueEvaluator(max_step_count=max_step_count)
 
         if isinstance(reward_generator, str):
             if not hasattr(rewards, reward_generator):
@@ -172,9 +175,10 @@ class RogueBox:
         """
         # reset internal variables
         self.step_count = 0
-        self.episode_reward = 0
         self.state = None
         self.reward = None
+
+        self.evaluator.on_run_begin()
         self.parser.reset()
         if self.reward_generator:
             self.reward_generator.reset()
@@ -435,18 +439,20 @@ class RogueBox:
 
         new_screen = self.screen
 
-        lose = self.game_over(new_screen)
-        if not lose:
-            self.frame_history.append(self.parser.parse_screen(new_screen))
+        self.step_count += 1
 
-            self.reward = self.compute_reward(self.frame_history, reward_generator=reward_generator)
-            self.state = self.compute_state(self.frame_history, state_generator=state_generator)
+        is_rogue_dead = self.game_over(new_screen)
 
-            self.step_count += 1
-            self.episode_reward += self.reward
-            lose = self.step_count > self.max_step_count or (state_generator and state_generator.need_reset)
+        self.frame_history.append(self.parser.parse_screen(new_screen))
+        self.reward = self.compute_reward(self.frame_history, reward_generator=reward_generator)
+        self.state = self.compute_state(self.frame_history, state_generator=state_generator)
 
-        win = (reward_generator and reward_generator.goal_achieved)
-        if win or lose:
-            self.evaluator.add(info=self.frame_history[-1], reward=self.episode_reward, has_won=win, step=self.step_count)
-        return self.reward, self.state, win, lose
+        won = (reward_generator and reward_generator.goal_achieved)
+        stop = self.evaluator.on_step(self.frame_history, command, self.reward, self.step_count)
+        lost = (stop or is_rogue_dead) and not won
+
+        is_run_over = stop or is_rogue_dead or won
+        if is_run_over:
+            self.evaluator.on_run_end(won)
+
+        return self.reward, self.state, won, lost

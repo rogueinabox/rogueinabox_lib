@@ -78,6 +78,7 @@ class RogueEvaluator:
         n_episodes = len(evaluated_episodes)
         result["win_perc"] /= n_episodes
         result["steps_avg"] /= n_episodes
+        # todo: this is the total episode reward average, should the average be by step instead?
         result["reward_avg"] /= n_episodes
         result["tiles_avg"] /= n_episodes
 

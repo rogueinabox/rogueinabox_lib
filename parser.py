@@ -97,12 +97,20 @@ class RogueParser:
         """
         # get statusbar
         new_statusbar = self.build_statusbar(screen)
-        # get new level
-        new_level = new_statusbar["dungeon_level"]
+
         # get old level
         old_level = 1
         if self.last_info:
             old_level = self.last_info.statusbar["dungeon_level"]
+
+        if new_statusbar["is_empty"]:
+            # this is a tombstone (death) screen or any other screen without a status bar
+            new_statusbar["dungeon_level"] = old_level
+            self.last_info = RogueFrameInfo(pixel=None, map=None, statusbar=new_statusbar, screen=screen)
+            return self.last_info
+
+        # get new level
+        new_level = new_statusbar["dungeon_level"]
 
         # check whether the environment has changed -> the environment cannot change unless the player has reached a new level
         if new_level != old_level:

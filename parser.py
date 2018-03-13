@@ -15,34 +15,47 @@ class RogueParser:
     If you need to parse non-consecutive screens, call .reset() after each one.
     """
 
+    # regexp used to parse the status bar
+    parse_statusbar_re = re.compile(r"""
+                    Level:\s*(?P<dungeon_level>\d*)\s*
+                    Gold:\s*(?P<gold>\d*)\s*
+                    Hp:\s*(?P<current_hp>\d*)\((?P<max_hp>\d*)\)\s*
+                    Str:\s*(?P<current_strength>\d*)\((?P<max_strength>\d*)\)\s*
+                    Arm:\s*(?P<armor>\d*)\s*
+                    Exp:\s*(?P<exp_level>\d*)/(?P<tot_exp>\d*)\s*
+                    (?P<status>(Hungry|Weak|Faint)?)\s*
+                    (Cmd:\s*(?P<command_count>\d*))?""", re.VERBOSE)
+
+    # regexp used to extract the command count in custom rogue builds
     cmd_count_re = re.compile(r"Cmd:\s*(?P<command_count>\d*)", re.VERBOSE)
 
+    # tile type -> set of tiles of that type
+    tiles_types_dict = {
+        "environment": set(tile for tile in '#+.%-|'),
+        "items":       set(tile for tile in '^*!?$:)],=/'),
+        "monsters":    set(tile for tile in 'KEBSHIROZLCQANYFTWPXUMVGJD'),
+        "agents":      set(tile for tile in '@'),
+    }
+
     def __init__(self):
-        self.parse_statusbar_re = self.compile_statusbar_re()
-        self.rogue_dict = {
-            "environment": '#+.%-|',
-            "items": '^*!?$:)],=/',
-            "monsters": 'KEBSHIROZLCQANYFTWPXUMVGJD',
-            "agents": '@',
-        }
         self.last_info = None
 
     def reset(self):
         """reset internal state, call this before parsing a non-consecutive screen"""
-        self.pixel = self.build_pixel_dict()
+        self.pixel = self._build_pixel_dict()
         self.environment_map = self.empty_environment_map()  # reset the environment state
-        self.environment_dict = self.build_type_dict("environment")
+        self.environment_dict = self._build_type_dict("environment")
         self.last_info = None
 
-    def build_pixel_dict(self):
+    def _build_pixel_dict(self):
         result = {}
-        for key in self.rogue_dict:
-            result[key] = self.build_type_dict(key)
+        for key in self.tiles_types_dict:
+            result[key] = self._build_type_dict(key)
         return result
 
-    def build_type_dict(self, key):
+    def _build_type_dict(self, key):
         result = {}
-        for pixel in self.rogue_dict[key]:
+        for pixel in self.tiles_types_dict[key]:
             result[pixel] = []
         return result
 
@@ -55,19 +68,6 @@ class RogueParser:
                 row.append(" ")
             env.append(row)
         return env
-
-    @staticmethod
-    def compile_statusbar_re():
-        parse_statusbar_re = re.compile(r"""
-                Level:\s*(?P<dungeon_level>\d*)\s*
-                Gold:\s*(?P<gold>\d*)\s*
-                Hp:\s*(?P<current_hp>\d*)\((?P<max_hp>\d*)\)\s*
-                Str:\s*(?P<current_strength>\d*)\((?P<max_strength>\d*)\)\s*
-                Arm:\s*(?P<armor>\d*)\s*
-                Exp:\s*(?P<exp_level>\d*)/(?P<tot_exp>\d*)\s*
-                (?P<status>(Hungry|Weak|Faint)?)\s*
-                (Cmd:\s*(?P<command_count>\d*))?""", re.VERBOSE)
-        return parse_statusbar_re
 
     def build_statusbar(self, screen):
         bar = {}
@@ -115,28 +115,28 @@ class RogueParser:
         # check whether the environment has changed -> the environment cannot change unless the player has reached a new level
         if new_level != old_level:
             self.environment_map = self.empty_environment_map()  # reset the environment state
-            self.environment_dict = self.build_type_dict("environment")
+            self.environment_dict = self._build_type_dict("environment")
 
         # optimal info initialisation
         self.pixel = {}
-        self.pixel["agents"] = self.build_type_dict("agents")
-        self.pixel["monsters"] = self.build_type_dict("monsters")
-        self.pixel["items"] = self.build_type_dict("items")
+        self.pixel["agents"] = self._build_type_dict("agents")
+        self.pixel["monsters"] = self._build_type_dict("monsters")
+        self.pixel["items"] = self._build_type_dict("items")
 
         # populate the info dictionary
         for x, j in itertools.product(range(1, 23), range(80)):
             pixel = screen[x][j]
             i = x - 1  # The internal map has a different size and it is 22x80, on the other hand the screen is 24x80. The first and the last screen line contains useless metadata
-            if pixel in self.rogue_dict["environment"]:  # immobile environment
+            if pixel in self.tiles_types_dict["environment"]:  # immobile environment
                 # once initialised, there is no need to re-initialise it again because the environment is immobile
                 if str(self.environment_map[i][j]) == ' ':
                     self.environment_map[i][j] = pixel
                     self.environment_dict[pixel].append((i, j))
-            elif pixel in self.rogue_dict["items"]:  # items
+            elif pixel in self.tiles_types_dict["items"]:  # items
                 self.pixel["items"][pixel].append((i, j))
-            elif pixel in self.rogue_dict["agents"]:  # agents
+            elif pixel in self.tiles_types_dict["agents"]:  # agents
                 self.pixel["agents"][pixel].append((i, j))
-            elif pixel in self.rogue_dict["monsters"]:  # monsters
+            elif pixel in self.tiles_types_dict["monsters"]:  # monsters
                 self.pixel["monsters"][pixel].append((i, j))
 
         # copies must be returned in order to be able to keep a history and compare different frames

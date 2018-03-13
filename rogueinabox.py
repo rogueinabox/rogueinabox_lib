@@ -79,8 +79,8 @@ class RogueBox:
         terminal = False
         while not terminal:
             act = compute_action(state, actions)
-            reward, state, win, lose = rb.send_command(act)
-            terminal = win or lose
+            reward, state, won, lost = rb.send_command(act)
+            terminal = won or lost
 
     """
 
@@ -211,7 +211,7 @@ class RogueBox:
         If move_rogue was set to True in init, the resulting state of the initial action will be returned.
 
         :return:
-            (reward, state, win, lose)
+            (reward, state, won, lose)
         """
         self.stop()
         return self._start()
@@ -376,7 +376,7 @@ class RogueBox:
             new_cmd_count = self.parser.get_cmd_count(self.screen)
 
     def send_command(self, command, state_generator=None, reward_generator=None):
-        """send a command to rogue and return (reward, state, win, lose).
+        """send a command to rogue and return (reward, state, won, lost).
         If passed generators are None, the ones supplied during init are used.
 
         :param str command:
@@ -386,7 +386,7 @@ class RogueBox:
         :param rewards.RewardGenerator reward_generator:
             reward generator, if None the one supplied during init will be used
         :return:
-            (reward, state, win, lose)
+            (reward, state, won, lost)
         """
 
         old_screen = self.screen

@@ -8,8 +8,8 @@ class RandomAgent(BaseAgent):
     def act(self):
         actions = self.rb.get_actions()
         action = random.choice(actions)
-        _, _, win, lose = self.rb.send_command(action)
-        return win or lose
+        _, _, won, lost = self.rb.send_command(action)
+        return won or lost
 
 
 if __name__ == '__main__':

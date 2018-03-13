@@ -75,7 +75,7 @@ class BaseAgent(ABC):
         """Perform an action in the game and return whether the next state is terminal, according to any condition.
 
         Use the following instruction to perform an action an get the result:
-            reward, state, win, lose = self.rb.send_command(<action>)
+            reward, state, won, lost = self.rb.send_command(<action>)
 
         :rtype : bool
         :return: whether next state is terminal

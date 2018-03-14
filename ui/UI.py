@@ -42,4 +42,8 @@ class UI(object):
 
     def read_rogue(self):
         """Return the string on the rogue process screen"""
+        return self.rb.get_screen_string()
+
+    def draw_from_rogue(self):
+        """Draw the rogue screen on the ui"""
         pass

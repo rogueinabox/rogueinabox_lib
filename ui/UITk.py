@@ -53,10 +53,6 @@ class UITk(UI):
         """Draw on the screen the provided string"""
         self.screen.set(string)
 
-    def read_rogue(self):
-        """Return the string on the rogue process screen"""
-        return self.rb.get_screen_string()
-
     def draw_from_rogue(self):
         """Draw on the screen whats on rogue"""
         self.draw(self.read_rogue())

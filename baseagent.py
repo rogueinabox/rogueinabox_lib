@@ -45,6 +45,9 @@ class BaseAgent(ABC):
                 "refresh_after_commands": bool
                     whether to issue a refresh command after each action
                     Default: True
+                "move_rogue": bool
+                    whether to perform a legal move as soon as the game is started
+                    Default: False
                 "log_filepath": str
                     log file path
                     Default: "logfile.log"
@@ -73,6 +76,7 @@ class BaseAgent(ABC):
         configs.setdefault("state_generator", None)
         configs.setdefault("reward_generator", None)
         configs.setdefault("refresh_after_commands", True)
+        configs.setdefault("move_rogue", False)
         configs.setdefault("log_filepath", "logfile.log")
         configs.setdefault("log_depth", 0)
 
@@ -88,7 +92,8 @@ class BaseAgent(ABC):
                       state_generator=configs["state_generator"],
                       reward_generator=configs["reward_generator"],
                       refresh_after_commands=configs["refresh_after_commands"],
-                      start_game=True)
+                      start_game=True,
+                      move_rogue=configs["move_rogue"])
         return rb
 
     def _create_ui(self, configs):

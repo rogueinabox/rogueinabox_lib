@@ -118,3 +118,13 @@ class RewardGenerator(ABC):
             result = newMax - portion
 
         return result
+
+
+class Dummy_RewardGenerator(RewardGenerator):
+    """Dummy generator that always returns 0"""
+
+    def compute_reward(self, frame_history):
+        return 0
+
+    def get_value(self, frame_history):
+        pass

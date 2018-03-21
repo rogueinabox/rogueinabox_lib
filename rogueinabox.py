@@ -100,7 +100,7 @@ class RogueBox:
         return rogue_path
 
     def __init__(self, game_exe_path=None, max_step_count=500, evaluator=None,
-                 state_generator=None, reward_generator=None,
+                 state_generator="Dummy_StateGenerator", reward_generator="Dummy_RewardGenerator",
                  refresh_after_commands=True, start_game=False, move_rogue=False):
         """
         :param str game_exe_path:
@@ -143,6 +143,8 @@ class RogueBox:
 
         self.evaluator = evaluator if evaluator is not None else RogueEvaluator(max_step_count=max_step_count)
 
+        if reward_generator is None:
+            raise ValueError('reward generator cannot be None, use "Dummy_RewardGenerator" instead')
         if isinstance(reward_generator, str):
             if not hasattr(rewards, reward_generator):
                 raise ValueError('no reward generator named "%s" was found' % reward_generator)
@@ -150,6 +152,8 @@ class RogueBox:
         else:
             self.reward_generator = reward_generator
 
+        if state_generator is None:
+            raise ValueError('state generator cannot be None, use "Dummy_StateGenerator" instead')
         if isinstance(state_generator, str):
             if not hasattr(states, state_generator):
                 raise ValueError('no state generator named "%s" was found' % state_generator)
@@ -183,10 +187,8 @@ class RogueBox:
 
         self.evaluator.on_run_begin()
         self.parser.reset()
-        if self.reward_generator:
-            self.reward_generator.reset()
-        if self.state_generator:
-            self.state_generator.reset()
+        self.reward_generator.reset()
+        self.state_generator.reset()
 
         # start game process
         self.terminal, self.pid, self.pipe = open_terminal(command=self.rogue_path)

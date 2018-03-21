@@ -38,10 +38,10 @@ class BaseAgent(ABC):
                     Default: 500
                 "state_generator": states.StateGenerator
                     state generator to be used
-                    Default: None
+                    Default: "Dummy_StateGenerator"
                 "reward_generator": rewards.RewardGenerator
                     state generator to be used
-                    Default: None
+                    Default: "Dummy_RewardGenerator"
                 "refresh_after_commands": bool
                     whether to issue a refresh command after each action
                     Default: True
@@ -73,8 +73,8 @@ class BaseAgent(ABC):
         configs.setdefault("userinterface", "tk")
         configs.setdefault("gui_timer_ms", 100)
         configs.setdefault("max_step_count", 500)
-        configs.setdefault("state_generator", None)
-        configs.setdefault("reward_generator", None)
+        configs.setdefault("state_generator", "Dummy_StateGenerator")
+        configs.setdefault("reward_generator", "Dummy_RewardGenerator")
         configs.setdefault("refresh_after_commands", True)
         configs.setdefault("move_rogue", False)
         configs.setdefault("log_filepath", "logfile.log")

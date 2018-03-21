@@ -132,3 +132,16 @@ class StateGenerator(ABC):
         :rtype: np.ndarray
         """
         return np.zeros(self._shape, dtype=np.uint8)
+
+
+class Dummy_StateGenerator(StateGenerator):
+    """Dummy generator that always returns None"""
+
+    def _set_shape(self, data_format):
+        self._shape = (0, 0, 0)
+
+    def compute_state(self, frame_history):
+        return None
+
+    def build_state(self, current_frame, frame_history):
+        pass

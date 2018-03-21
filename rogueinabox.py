@@ -167,11 +167,14 @@ class RogueBox:
 
     def _start(self):
         """Start the game.
-        If move_rogue was set to True in init, perform a legal move to see the tile below the player.
-        If the initial action is performed, the resulting state will be returned.
+        If move_rogue was set to True in init, perform a legal move to see the tile below the player and the resulting
+        state will be returned.
 
         :return:
-            (reward, state, win, lose)
+            if move_rogue was set to True in init:
+                (reward, state, won, lost)
+            else:
+                None
         """
         # reset internal variables
         self.step_count = 0
@@ -208,10 +211,13 @@ class RogueBox:
 
     def reset(self):
         """Kill and restart the rogue process.
-        If move_rogue was set to True in init, the resulting state of the initial action will be returned.
+        If move_rogue was set to True in init, an initial legal action is performed and the resulting state returned.
 
         :return:
-            (reward, state, won, lose)
+            if move_rogue was set to True in init:
+                (reward, state, won, lost)
+            else:
+                None
         """
         self.stop()
         return self._start()

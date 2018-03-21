@@ -22,7 +22,7 @@ from abc import ABC, abstractmethod
 # ABSTRACT CLASSES
 
 class StateGenerator(ABC):
-    def __init__(self, data_format=False):
+    def __init__(self, data_format="channels_last"):
         """
         :param str data_format:
             "channels_first" or "channels_last"

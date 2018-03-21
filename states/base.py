@@ -62,14 +62,13 @@ class StateGenerator(ABC):
         :param list[RogueFrameInfo] frame_history:
             list of parsed screen information
         :return:
-            state representation as a dict:
-            {'state': np.ndarray, 'frame_info': RogueFrameInfo}
+            state representation as a numpy array
         """
         if self.is_frame_history_sufficient(frame_history):
             state = self.build_state(frame_history[-1], frame_history)
         else:
             state = self.empty_state()
-        return {'state': state, 'frame_info': frame_history[:]}
+        return state
 
     def is_frame_history_sufficient(self, frame_history):
         """Return whether the frame info is sufficient to compute a state or if a default one should be provided"""
@@ -128,5 +127,8 @@ class StateGenerator(ABC):
         return state
 
     def empty_state(self):
-        """Returns an all-zero ndarray of the correct shape"""
+        """Returns an all-zero ndarray of the correct shape
+
+        :rtype: np.ndarray
+        """
         return np.zeros(self._shape, dtype=np.uint8)

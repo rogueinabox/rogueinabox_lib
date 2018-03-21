@@ -106,7 +106,7 @@ class RogueParser:
         if new_statusbar["is_empty"]:
             # this is a tombstone (death) screen or any other screen without a status bar
             new_statusbar["dungeon_level"] = old_level
-            self.last_info = RogueFrameInfo(pixel=None, map=None, statusbar=new_statusbar, screen=screen)
+            self.last_info = RogueFrameInfo(pixel={}, map=[[]], statusbar=new_statusbar, screen=screen)
             return self.last_info
 
         # get new level

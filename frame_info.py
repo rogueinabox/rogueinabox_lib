@@ -26,10 +26,12 @@ class RogueFrameInfo:
         :return:
             tile string
         """
-        x, y = pos
-        if x >= 0 and y >= 0 and x < len(self.map) and y < len(self.map[x]):
+        try:
+            x, y = pos
             return self.map[x][y]
-        return ' '
+        except (TypeError, ValueError, IndexError):
+            # TypeError and ValueError catch exceptions on "x, y = pos"
+            return ' '
 
     def get_player_pos(self):
         """Returns the coordinates of the position of the rogue
@@ -38,7 +40,10 @@ class RogueFrameInfo:
         :return:
             rogue coordinates
         """
-        return self.pixel["agents"]["@"][0]
+        try:
+            return self.pixel["agents"]["@"][0]
+        except (KeyError, IndexError):
+            return None
 
     def has_statusbar(self):
         """Returns whether the frame contains the status bar"""

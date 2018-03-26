@@ -143,7 +143,9 @@ class BaseAgent(ABC):
             self.ui.start_ui()
         else:
             while (self.rb.is_running()):
-                self.act()
+                terminal = self.act()
+                if terminal:
+                    self.game_over()
 
     def game_over(self):
         """Called each time a terminal state is reached.
@@ -182,7 +184,7 @@ class BaseAgent(ABC):
         """
         terminal = self.act()
         self.ui.draw_from_rogue()
-        if not self.rb.game_over() or terminal:
+        if not (self.rb.game_over() or terminal):
             # renew the callback
             self._pending_action_timer = self.ui.on_timer_end(self._timer_value, self._act_callback)
         else:

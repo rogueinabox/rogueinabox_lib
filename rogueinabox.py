@@ -366,12 +366,11 @@ class RogueBox:
 
     def _dismiss_all_messages(self):
         """dismiss all status messages and refresh the screen and returns whether any was dismissed"""
-        must_dismiss = self._need_to_dismiss()
-        while must_dismiss:
+        has_dismissed = self._need_to_dismiss()
+        while self._need_to_dismiss():
             self._dismiss_message()
             self._update_screen()
-            must_dismiss = self._need_to_dismiss()
-        return must_dismiss
+        return has_dismissed
 
     def quit_the_game(self):
         """Send the keystroke needed to quit the game."""

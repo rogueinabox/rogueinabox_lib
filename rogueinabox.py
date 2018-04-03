@@ -94,18 +94,23 @@ class RogueBox:
         return ['h', 'j', 'k', 'l', '>']
 
     @staticmethod
-    def default_game_exe_path():
+    def default_game_exe_path(use_monsters=True):
+        exe_name = 'rogue_monsters' if use_monsters else 'rogue_without_monsters'
         this_file_dir = os.path.dirname(os.path.realpath(__file__))
-        rogue_path = os.path.join(this_file_dir, 'rogue', 'rogue')
+        rogue_path = os.path.join(this_file_dir, 'rogue', exe_name)
         return rogue_path
 
-    def __init__(self, game_exe_path=None, max_step_count=500, evaluator=None,
+    def __init__(self, game_exe_path=None, use_monsters=True, max_step_count=500, evaluator=None,
                  state_generator="Dummy_StateGenerator", reward_generator="Dummy_RewardGenerator",
                  refresh_after_commands=True, start_game=False, move_rogue=False):
         """
         :param str game_exe_path:
             rogue executable path.
-            If None, will use the default executable "./rogue/rogue" in the rogue git submodule.
+            If None, will use the default executable in the rogue git submodule, either "./rogue/rogue_monsters"
+            or "./rogue/rogue_without_monsters", depending on the "use_monsters" parameter.
+        :param bool use_monsters:
+            whether to enable monsters in the game.
+            N.B. this is used only if parameter "game_exe_path" is None
         :param int max_step_count:
             maximum number of steps before declaring the game lost.
             N.B. this is used only if parameter "evaluator" is None
@@ -135,7 +140,7 @@ class RogueBox:
             whether to perform a legal move as soon as the game is started.
             This is useful to know the tile below the player.
         """
-        self.rogue_path = game_exe_path or self.default_game_exe_path()
+        self.rogue_path = game_exe_path or self.default_game_exe_path(use_monsters=use_monsters)
         if not shutil.which(self.rogue_path):
             raise ValueError('game_exe_path "%s" is not executable' % self.rogue_path)
 

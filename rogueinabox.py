@@ -29,7 +29,6 @@ from .evaluator import RogueEvaluator
 from . import states
 from . import rewards
 
-
 class Terminal:
     def __init__(self, columns, lines):
         self.screen = pyte.DiffScreen(columns, lines)
@@ -172,6 +171,9 @@ class RogueBox:
         self.move_rogue = move_rogue
 
         self.has_cmd_count = False
+
+        # rogue process id
+        self.pid = None
 
         if start_game:
             self._start()
@@ -326,7 +328,8 @@ class RogueBox:
         """check if the rogue process exited"""
         try:
             pid, status = os.waitpid(self.pid, os.WNOHANG)
-        except OSError:
+        except (OSError, TypeError):
+            # TypeError in case self.pid is still None
             return False
         if pid == 0:
             return True

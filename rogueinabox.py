@@ -386,7 +386,17 @@ class RogueBox:
             self._dismiss_all_messages()
             if self.game_over():
                 break
-            new_cmd_count = self.parser.get_cmd_count(self.screen)
+            try:
+                # very rarely, the screen does not completely refresh
+                # in particular the status bar may not be totally drawn
+                # in principle this means we could get a lower cmd count (if some but not all the digits were drawn)
+                bak_cmd_count = new_cmd_count
+                new_cmd_count = self.parser.get_cmd_count(self.screen)
+                if new_cmd_count < bak_cmd_count:
+                    new_cmd_count = bak_cmd_count
+            except RuntimeError:
+                # screen was not fully refreshed and did not contain yet the cmd count
+                continue
 
     def send_command(self, command, state_generator=None, reward_generator=None):
         """send a command to rogue and return (reward, state, won, lost).

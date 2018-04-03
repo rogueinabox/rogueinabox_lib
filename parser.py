@@ -145,5 +145,14 @@ class RogueParser:
         return self.last_info
 
     def get_cmd_count(self, screen):
-        """Return cmd count of the screen for custom rogue build"""
-        return int(self.cmd_count_re.search(screen[-1]).group("command_count"))
+        """Return cmd count of the screen for custom rogue build
+
+        :rtype: int
+        :raises RuntimeError:
+            if the screen is not fully refrehsed and the last line is not complete and in particular does not
+            contain the Cmd count yet
+        """
+        try:
+            return int(self.cmd_count_re.search(screen[-1]).group("command_count"))
+        except (AttributeError, ValueError):
+            raise RuntimeError('screen not fully refreshed')

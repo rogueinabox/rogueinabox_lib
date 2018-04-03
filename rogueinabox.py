@@ -362,10 +362,13 @@ class RogueBox:
             return False
 
     def _dismiss_all_messages(self):
-        """dismiss all status messages and refresh the screen"""
-        while self._need_to_dismiss():
+        """dismiss all status messages and refresh the screen and returns whether any was dismissed"""
+        must_dismiss = self._need_to_dismiss()
+        while must_dismiss:
             self._dismiss_message()
             self._update_screen()
+            must_dismiss = self._need_to_dismiss()
+        return must_dismiss
 
     def quit_the_game(self):
         """Send the keystroke needed to quit the game."""
@@ -387,12 +390,10 @@ class RogueBox:
         # parallel to it the count is increased by 2
         while new_cmd_count < expected_cmd_count:
             self._update_screen()
-            if self.refresh_after_commands and self._need_to_dismiss():
-                # if the refresh command is sent when a dismissable "...--More--" message is on screen, then
-                # the cmd count will not increase
-                expected_cmd_count -= 1
-            self._dismiss_all_messages()
-            if self.game_over():
+            has_dismissed = self._dismiss_all_messages()
+            # if there were messages to dismiss it does not matter how much the cmd count changed
+            # in this case we are sure the action processing is terminated
+            if has_dismissed or self.game_over():
                 break
             try:
                 # very rarely, the screen does not completely refresh

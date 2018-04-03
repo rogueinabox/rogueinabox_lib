@@ -171,6 +171,8 @@ class RogueBox:
 
         self.move_rogue = move_rogue
 
+        self.has_cmd_count = False
+
         if start_game:
             self._start()
 
@@ -205,8 +207,14 @@ class RogueBox:
         # wait until the rogue spawns
         self.screen = self.get_empty_screen()
         self._update_screen()
-        while self.game_over(self.screen):
+        while not "Exp:" in self.screen[-1]:
             self._update_screen()
+
+        if not self.has_cmd_count:
+            # if self.has_cmd_count was True then we found the cmd count previously so it will be still there
+            # otherwise it may be the first time the game is started so we will check
+            self.has_cmd_count = "Cmd" in self.screen[-1]
+
         self.frame_history = [self.parser.parse_screen(self.screen)]
 
         if self.move_rogue:
@@ -420,7 +428,7 @@ class RogueBox:
             self.pipe.write(self.refresh_command)
 
         # wait until rogue elaborates the command
-        if "Cmd" in old_screen[-1]:
+        if self.has_cmd_count:
             # this is a custom build of rogue that prints a cmd count in the status bar that is updated as soon as a
             # command is elaborated, so we can perform busy waiting
             self._cmd_busy_wait()

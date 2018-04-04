@@ -365,12 +365,13 @@ class RogueBox:
             return False
 
     def _dismiss_all_messages(self):
-        """dismiss all status messages and refresh the screen and returns whether any was dismissed"""
-        has_dismissed = self._need_to_dismiss()
+        """dismiss all status messages and refresh the screen and returns the number of commands sent"""
+        n_cmds = 0
         while self._need_to_dismiss():
             self._dismiss_message()
             self._update_screen()
-        return has_dismissed
+            n_cmds += 1
+        return n_cmds
 
     def quit_the_game(self):
         """Send the keystroke needed to quit the game."""
@@ -381,22 +382,27 @@ class RogueBox:
     def get_last_frame(self):
         return self.frame_history[-1]
 
-    def _cmd_busy_wait(self):
-        """perform busy wait on the rogue custom build with command count"""
-        cmd_increment = 1 if not self.refresh_after_commands else 2
+    def _cmd_busy_wait(self, cmd_sent):
+        """perform busy wait on the rogue custom build with command count
+
+        :param int cmd_sent:
+            number of commands that were sent since the last screen update
+        """
         old_cmd_count = self.frame_history[-1].statusbar["command_count"]
-        expected_cmd_count = old_cmd_count + cmd_increment
+        expected_cmd_count = old_cmd_count + cmd_sent
         new_cmd_count = old_cmd_count
         # busy wait until the cmd count is increased
-        # the command count may increase more than expected, e.g. when a monster is next to the rogue and he moves
-        # parallel to it the count is increased by 2
         while new_cmd_count < expected_cmd_count:
             self._update_screen()
-            has_dismissed = self._dismiss_all_messages()
-            # if there were messages to dismiss it does not matter how much the cmd count changed
-            # in this case we are sure the action processing is terminated
-            if has_dismissed or self.game_over():
+            dismiss_cmds = self._dismiss_all_messages()
+            if self.game_over():
                 break
+            if dismiss_cmds > 0:
+                if self.refresh_after_commands:
+                    # if the refresh command is sent when a dismissable "...--More--" message is on screen, then
+                    # the cmd count will not increase
+                    expected_cmd_count -= 1
+                expected_cmd_count += dismiss_cmds - 1
             try:
                 # very rarely, the screen does not completely refresh
                 # in particular the status bar may not be totally drawn
@@ -434,7 +440,7 @@ class RogueBox:
         if self.has_cmd_count:
             # this is a custom build of rogue that prints a cmd count in the status bar that is updated as soon as a
             # command is elaborated, so we can perform busy waiting
-            self._cmd_busy_wait()
+            self._cmd_busy_wait(cmd_sent=2 if self.refresh_after_commands else 1)
         else:
             # this build of rogue does not provide an easy and fast way to determine if the command elaboration is
             # done, so we must wait a fixed amount of time

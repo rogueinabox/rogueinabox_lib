@@ -38,7 +38,15 @@ class BaseAgent(ABC):
                     Default: 100
                 "max_step_count": int
                     maximum number of steps per episode
+                    N.B. this is used only if key "rogue_evaluator" is None
                     Default: 500
+                "episodes_for_evaluation": int
+                    number of latest episode to consider when computing statistics.
+                    N.B. this is used only if key "rogue_evaluator" is None
+                    Default: 200
+                "rogue_evaluator": evaluator
+                    agent evaluator. If None, the default evaluator will be used.
+                    Default: None
                 "state_generator": states.StateGenerator
                     state generator to be used
                     Default: "Dummy_StateGenerator"
@@ -77,6 +85,8 @@ class BaseAgent(ABC):
         configs.setdefault("userinterface", "tk")
         configs.setdefault("gui_timer_ms", 100)
         configs.setdefault("max_step_count", 500)
+        configs.setdefault("episodes_for_evaluation", 200)
+        configs.setdefault("rogue_evaluator", None)
         configs.setdefault("state_generator", "Dummy_StateGenerator")
         configs.setdefault("reward_generator", "Dummy_RewardGenerator")
         configs.setdefault("refresh_after_commands", True)
@@ -94,6 +104,8 @@ class BaseAgent(ABC):
         rb = RogueBox(game_exe_path=configs["rogue"],
                       use_monsters=configs["use_monsters"],
                       max_step_count=configs["max_step_count"],
+                      episodes_for_evaluation=configs["episodes_for_evaluation"],
+                      evaluator=configs["rogue_evaluator"],
                       state_generator=configs["state_generator"],
                       reward_generator=configs["reward_generator"],
                       refresh_after_commands=configs["refresh_after_commands"],

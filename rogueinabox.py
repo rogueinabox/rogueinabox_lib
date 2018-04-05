@@ -99,7 +99,8 @@ class RogueBox:
         rogue_path = os.path.join(this_file_dir, 'rogue', exe_name)
         return rogue_path
 
-    def __init__(self, game_exe_path=None, use_monsters=True, max_step_count=500, evaluator=None,
+    def __init__(self, game_exe_path=None, use_monsters=True,
+                 max_step_count=500, episodes_for_evaluation=200, evaluator=None,
                  state_generator="Dummy_StateGenerator", reward_generator="Dummy_RewardGenerator",
                  refresh_after_commands=True, start_game=False, move_rogue=False):
         """
@@ -112,6 +113,9 @@ class RogueBox:
             N.B. this is used only if parameter "game_exe_path" is None
         :param int max_step_count:
             maximum number of steps before declaring the game lost.
+            N.B. this is used only if parameter "evaluator" is None
+        :param int episodes_for_evaluation:
+            number of latest episode to consider when computing statistics.
             N.B. this is used only if parameter "evaluator" is None
         :param RogueEvaluator evaluator:
             agent evaluator.
@@ -145,7 +149,11 @@ class RogueBox:
 
         self.parser = RogueParser()
 
-        self.evaluator = evaluator if evaluator is not None else RogueEvaluator(max_step_count=max_step_count)
+        if evaluator is None:
+            self.evaluator = RogueEvaluator(max_step_count=max_step_count,
+                                            episodes_for_evaluation=episodes_for_evaluation)
+        else:
+            self.evaluator = evaluator
 
         if reward_generator is None:
             raise ValueError('reward generator cannot be None, use "Dummy_RewardGenerator" instead')
@@ -465,6 +473,6 @@ class RogueBox:
 
         is_run_over = stop or is_rogue_dead or won
         if is_run_over:
-            self.evaluator.on_run_end(won)
+            self.evaluator.on_run_end(won, is_rogue_dead)
 
         return self.reward, self.state, won, lost

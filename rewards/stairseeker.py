@@ -4,7 +4,7 @@ from .base import RewardGenerator
 class StairSeeker_RewardGenerator(RewardGenerator):
     """Generate a reward for the last action:
         +10 for descending the stairs
-        +1 for each new door discovered
+        +1 for discovering new doors
         -0.01 for standing still
     """
 
@@ -24,7 +24,7 @@ class StairSeeker_RewardGenerator(RewardGenerator):
 class StairSeeker_13_RewardGenerator(RewardGenerator):
     """Generate a reward for the last action:
         +10000 for descending the stairs
-        +1 for each new door discovered
+        +1 for discovering new doors
         +1 for each new corridor tile discovered
     """
 
@@ -44,7 +44,7 @@ class StairSeeker_13_RewardGenerator(RewardGenerator):
 class StairSeeker_15_RewardGenerator(RewardGenerator):
     """Generate a reward for the last action:
         +10000 for descending the stairs
-        +100 for each new door discovered
+        +100 for discovering new doors
     """
 
     def get_value(self, frame_history):
@@ -61,7 +61,7 @@ class StairSeeker_15_RewardGenerator(RewardGenerator):
 class ImprovedStairSeeker_RewardGenerator(StairSeeker_RewardGenerator):
     """Generate a reward for the last action:
         +10 for descending the stairs
-        +1 for each new door discovered
+        +1 for discovering new doors
         +1 for making the first step into a new corridor
         -0.01 for standing still
     """
@@ -78,7 +78,7 @@ class ImprovedStairSeeker_RewardGenerator(StairSeeker_RewardGenerator):
 class ImprovedStairSeeker2_RewardGenerator(ImprovedStairSeeker_RewardGenerator):
     """Generate a reward for the last action:
         +100 for descending the stairs
-        +1 for each new door discovered
+        +1 for discovering new doors
         +1 for making the first step into a new corridor
         -0.01 for standing still
     """

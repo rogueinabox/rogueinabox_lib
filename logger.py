@@ -157,12 +157,12 @@ class Logger:
         :param str string:
             string to print
         """
+        current_time = datetime.now().isoformat()
+        formatted_str = "[{}] {}".format(current_time, string)
         for target in self.targets:
             if target == "terminal":
-                print(string)
+                print(formatted_str)
             elif target == "file":
-                current_time = datetime.now().isoformat()
-                text = "[{}] {}\n".format(current_time, string)
-                self.log_file.write(text)
+                print(formatted_str, file=self.log_file)
             elif target == "ui" and self.ui is not None:
                 self.ui.draw_log(string)

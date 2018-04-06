@@ -405,12 +405,7 @@ class RogueBox:
             dismiss_cmds = self._dismiss_all_messages()
             if self.game_over():
                 break
-            if dismiss_cmds > 0:
-                if self.refresh_after_commands:
-                    # if the refresh command is sent when a dismissable "...--More--" message is on screen, then
-                    # the cmd count will not increase
-                    expected_cmd_count -= 1
-                expected_cmd_count += dismiss_cmds - 1
+            expected_cmd_count += dismiss_cmds
             try:
                 # very rarely, the screen does not completely refresh
                 # in particular the status bar may not be totally drawn

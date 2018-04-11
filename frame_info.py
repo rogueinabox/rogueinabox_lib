@@ -33,9 +33,11 @@ class RogueFrameInfo:
             # TypeError and ValueError catch exceptions on "x, y = pos"
             return ' '
 
-    def get_player_pos(self):
+    def get_player_pos(self, default=None):
         """Returns the coordinates of the position of the rogue
 
+        :param default:
+            value to return in case the rogue can't be found on the map
         :rtype tuple[int, int]
         :return:
             rogue coordinates
@@ -43,7 +45,7 @@ class RogueFrameInfo:
         try:
             return self.pixel["agents"]["@"][0]
         except (KeyError, IndexError):
-            return None
+            return default
 
     def has_statusbar(self):
         """Returns whether the frame contains the status bar"""

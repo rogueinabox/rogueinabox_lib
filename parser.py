@@ -100,7 +100,7 @@ class RogueParser:
 
         # get old level
         old_level = 1
-        if self.last_info:
+        if self.last_info and not self.last_info.statusbar["is_empty"]:
             old_level = self.last_info.statusbar["dungeon_level"]
 
         if new_statusbar["is_empty"]:

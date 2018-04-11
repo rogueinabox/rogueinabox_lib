@@ -2,6 +2,7 @@
 
 import collections
 
+
 class RogueEvaluator:
     """Implements the evaluation of an agent"""
 

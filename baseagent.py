@@ -1,6 +1,6 @@
 from .ui.UIManager import UIManager, UI
 from .rogueinabox import RogueBox
-from .logger import Logger
+from .logger import Logger, Log
 from abc import ABC, abstractmethod
 
 
@@ -59,6 +59,12 @@ class BaseAgent(ABC):
                 "move_rogue": bool
                     whether to perform a legal move as soon as the game is started
                     Default: False
+                "busy_wait_seconds": float
+                    amount of sleep seconds for each busy wait iteration
+                    Default: 0.0005
+                "max_busy_wait_seconds: float
+                    max amount of seconds that will be waited for before assuming the game has entered an endless loop
+                    Default: 5
                 "log_filepath": str
                     log file path
                     Default: "logfile.log"
@@ -91,6 +97,8 @@ class BaseAgent(ABC):
         configs.setdefault("reward_generator", "Dummy_RewardGenerator")
         configs.setdefault("refresh_after_commands", True)
         configs.setdefault("move_rogue", False)
+        configs.setdefault("busy_wait_seconds", 0.0005)
+        configs.setdefault("max_busy_wait_seconds", 5)
         configs.setdefault("log_filepath", "logfile.log")
         configs.setdefault("log_depth", 0)
 
@@ -110,7 +118,9 @@ class BaseAgent(ABC):
                       reward_generator=configs["reward_generator"],
                       refresh_after_commands=configs["refresh_after_commands"],
                       start_game=True,
-                      move_rogue=configs["move_rogue"])
+                      move_rogue=configs["move_rogue"],
+                      busy_wait_seconds=configs["busy_wait_seconds"],
+                      max_busy_wait_seconds=configs["max_busy_wait_seconds"])
         return rb
 
     def _create_ui(self, configs):
@@ -159,10 +169,12 @@ class BaseAgent(ABC):
         if self.ui is not None:
             self.ui.start_ui()
         else:
-            while (self.rb.is_running()):
+            self.logger.log([Log('start', 'start')])
+            while self.rb.is_running():
                 terminal = self.act()
                 if terminal:
                     self.game_over()
+            self.logger.log([Log('exit', 'exit')])
 
     def game_over(self):
         """Called each time a terminal state is reached.

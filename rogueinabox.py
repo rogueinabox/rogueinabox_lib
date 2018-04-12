@@ -504,6 +504,6 @@ class RogueBox:
 
         is_run_over = stop or is_rogue_dead or won
         if is_run_over:
-            self.evaluator.on_run_end(won, is_rogue_dead)
+            self.evaluator.on_run_end(self.frame_history, won, is_rogue_dead)
 
         return self.reward, self.state, won, lost

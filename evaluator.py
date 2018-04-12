@@ -15,12 +15,12 @@ class RogueEvaluator:
             (use 0, None or any "falsy" value to consider them all)
         """
         self.max_step_count = max_step_count
-        self.episodes_for_evaluation = episodes_for_evaluation or float('inf')
-        self.episodes = collections.deque()  # type: deque[Episode]
+        self.episodes_for_evaluation = episodes_for_evaluation or None
+        self.episodes = collections.deque(maxlen=self.episodes_for_evaluation)  # type: deque[Episode]
         self.current_episode = None  # type: Episode
 
     def reset(self):
-        self.episodes = collections.deque()
+        self.episodes.clear()
         self.current_episode = None  # type: Episode
 
     def on_run_begin(self):
@@ -42,20 +42,23 @@ class RogueEvaluator:
         :return:
             True if the run should stop
         """
-        episode = self.current_episode
-        episode.steps += 1
-        episode.total_reward += reward
-        episode.frame_history = frame_history
-        return episode.steps >= self.max_step_count
+        self.current_episode.steps += 1
+        self.current_episode.total_reward += reward
+        return self.current_episode.steps >= self.max_step_count
 
-    def on_run_end(self, won, is_rogue_dead):
+    def on_run_end(self, frame_history, won, is_rogue_dead):
         """Records the end of a run
 
+        :param list[frame_info.RogueFrameInfo] frame_history:
+            list of parsed frames
         :param bool won:
             whether the game was won, according to a reward generator
         :param bool is_rogue_dead:
             whether the rogue died
         """
+        # we use the penultimate frame if we can because the last one may be the tombstone or a new level
+        frame = frame_history[-2] if len(frame_history) > 1 else frame_history[0]
+        self.current_episode.final_tiles_count = frame.get_known_tiles_count()
         self.current_episode.won = won
         self._add_episode(self.current_episode)
 
@@ -67,8 +70,6 @@ class RogueEvaluator:
             episode to add to the collection
         """
         self.episodes.append(episode)
-        if len(self.episodes) > self.episodes_for_evaluation:
-            self.episodes.popleft()
 
     def statistics(self):
         """
@@ -93,7 +94,7 @@ class RogueEvaluator:
         # accumulate stats for each episode
         for e in evaluated_episodes:
             result["reward_avg"] += e.total_reward
-            result["tiles_avg"] += e.get_known_tiles_count()
+            result["tiles_avg"] += e.final_tiles_count
             result["all_steps_avg"] += e.steps
             if e.won:
                 result["win_perc"] += 1
@@ -116,11 +117,5 @@ class Episode:
     def __init__(self):
         self.won = False
         self.steps = 0
-        self.frame_history = None
+        self.final_tiles_count = 0
         self.total_reward = 0
-
-    def get_known_tiles_count(self):
-        """Returns the number of tiles seen in the episode"""
-        # we use the penultimate frame if we can because the last one may be the tombstone or a new level
-        frame = self.frame_history[-2] if len(self.frame_history) > 1 else self.frame_history[0]
-        return frame.get_known_tiles_count()

@@ -35,7 +35,12 @@ class StateGenerator(ABC):
                              data_format)
         self.data_format = data_format
         self._set_shape(data_format)
+        self._subinit()
         self.reset()
+
+    def _subinit(self):
+        """Methods for subclasses that need more init logic"""
+        pass
 
     def reset(self):
         self.need_reset = False

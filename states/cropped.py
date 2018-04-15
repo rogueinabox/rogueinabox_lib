@@ -1,11 +1,15 @@
 from math import floor
+from abc import abstractmethod
 from .base import StateGenerator
 
 
 class CroppedView_Base_StateGenerator(StateGenerator):
-    """Base class for generators that create states of fixed radius centered on the rogue.
+    """Base class for generators that create states of fixed radius centered on a coordinate.
     Everything outside the radius is cropped out.
     """
+
+    def _subinit(self):
+        self._area =  self._shape[1:] if self.data_format == "channels_first" else self._shape[:-1]
 
     def _get_relative_coordinates(self, tile_position, center_position, area):
         """Return the position that 'tile_position' would have in an area of size 'area' if 'center_position'
@@ -33,13 +37,25 @@ class CroppedView_Base_StateGenerator(StateGenerator):
         :return:
             reference to state, however the assignments are made "in place"
         """
-        area = self._shape[1:] if self.data_format == "channels_first" else self._shape[:-1]
-        centered_positions = map(lambda pos: self._get_relative_coordinates(pos, center, area), positions)
-        centered_positions = filter(lambda pos: all(c >= 0 and c < a for c, a in zip(pos, area)), centered_positions)
+        centered_positions = map(lambda pos: self._get_relative_coordinates(pos, center, self._area),
+                                 positions)
+        centered_positions = filter(lambda pos: all(c >= 0 and c < a for c, a in zip(pos, self._area)),
+                                    centered_positions)
         return self.set_channel(state, channel, centered_positions, value)
 
 
-class CroppedView_TripleLayer_11x11_StateGenerator(CroppedView_Base_StateGenerator):
+class CroppedViewOnRogue_Base_StateGenerator(CroppedView_Base_StateGenerator):
+    """Base class for generators that create states of fixed radius centered on the rogue.
+    Everything outside the radius is cropped out.
+    """
+
+    def is_frame_history_sufficient(self, frame_history):
+        current_frame = frame_history[-1]
+        self.player_position = current_frame.get_player_pos()
+        return (self.player_position is not None and super().is_frame_history_sufficient(frame_history))
+
+
+class CroppedView_TripleLayer_11x11_StateGenerator(CroppedViewOnRogue_Base_StateGenerator):
     """Generates a 11x11 state composed of 3 layers cropped and centered around the rouge containing:
         - layer 1:
             - corridors
@@ -58,17 +74,16 @@ class CroppedView_TripleLayer_11x11_StateGenerator(CroppedView_Base_StateGenerat
 
     def build_state(self, current_frame, frame_history):
         state = self.empty_state()
-        player_position = current_frame.get_list_of_positions_by_tile("@")[0]
 
         # layer 1
-        self.set_channel_relative(player_position, state, 0, current_frame.get_list_of_positions_by_tile("#"), 1)  # tunnel
-        self.set_channel_relative(player_position, state, 0, current_frame.get_list_of_positions_by_tile("+"), 1)  # doors
+        self.set_channel_relative(self.player_position, state, 0, current_frame.get_list_of_positions_by_tile("#"), 1)  # tunnel
+        self.set_channel_relative(self.player_position, state, 0, current_frame.get_list_of_positions_by_tile("+"), 1)  # doors
         # layer 2
-        self.set_channel_relative(player_position, state, 1, current_frame.get_list_of_positions_by_tile("%"), 1)  # stairs
+        self.set_channel_relative(self.player_position, state, 1, current_frame.get_list_of_positions_by_tile("%"), 1)  # stairs
         # layer 3
-        self.set_channel_relative(player_position, state, 2, current_frame.get_list_of_positions_by_tile("-"), 1)  # walls
-        self.set_channel_relative(player_position, state, 2, current_frame.get_list_of_positions_by_tile("|"), 1)  # walls
-        self.set_channel_relative(player_position, state, 2, current_frame.get_list_of_positions_by_tile("%"), 2)  # stairs
+        self.set_channel_relative(self.player_position, state, 2, current_frame.get_list_of_positions_by_tile("-"), 1)  # walls
+        self.set_channel_relative(self.player_position, state, 2, current_frame.get_list_of_positions_by_tile("|"), 1)  # walls
+        self.set_channel_relative(self.player_position, state, 2, current_frame.get_list_of_positions_by_tile("%"), 2)  # stairs
 
         return state
 
@@ -91,7 +106,7 @@ class CroppedView_TripleLayer_17x17_StateGenerator(CroppedView_TripleLayer_11x11
         self._shape = (3, 17, 17) if data_format == "channels_first" else (17, 17, 3)
 
 
-class CroppedView_SingleLayer_17x17_StateGenerator(CroppedView_Base_StateGenerator):
+class CroppedView_SingleLayer_17x17_StateGenerator(CroppedViewOnRogue_Base_StateGenerator):
     """Generates a 17x17 state composed of a single layer cropped and centered around the rouge containing:
         - stairs
         - walls
@@ -104,13 +119,12 @@ class CroppedView_SingleLayer_17x17_StateGenerator(CroppedView_Base_StateGenerat
 
     def build_state(self, current_frame, frame_history):
         state = self.empty_state()
-        player_position = current_frame.get_list_of_positions_by_tile("@")[0]
 
-        self.set_channel_relative(player_position, state, 0, current_frame.get_list_of_positions_by_tile("%"), 4)  # stairs
-        self.set_channel_relative(player_position, state, 0, current_frame.get_list_of_positions_by_tile("|"), 8)  # walls
-        self.set_channel_relative(player_position, state, 0, current_frame.get_list_of_positions_by_tile("-"), 8)  # walls
-        self.set_channel_relative(player_position, state, 0, current_frame.get_list_of_positions_by_tile("+"), 16)  # doors
-        self.set_channel_relative(player_position, state, 0, current_frame.get_list_of_positions_by_tile("#"), 16)  # tunnel
+        self.set_channel_relative(self.player_position, state, 0, current_frame.get_list_of_positions_by_tile("%"), 4)  # stairs
+        self.set_channel_relative(self.player_position, state, 0, current_frame.get_list_of_positions_by_tile("|"), 8)  # walls
+        self.set_channel_relative(self.player_position, state, 0, current_frame.get_list_of_positions_by_tile("-"), 8)  # walls
+        self.set_channel_relative(self.player_position, state, 0, current_frame.get_list_of_positions_by_tile("+"), 16)  # doors
+        self.set_channel_relative(self.player_position, state, 0, current_frame.get_list_of_positions_by_tile("#"), 16)  # tunnel
 
         return state
 
@@ -126,13 +140,11 @@ class CroppedView_SingleLayer_17x17_2_StateGenerator(CroppedView_SingleLayer_17x
     def build_state(self, current_frame, frame_history):
         state = self.empty_state()
 
-        player_position = current_frame.get_list_of_positions_by_tile("@")[0]
-
-        self.set_channel_relative(player_position, state, 0, current_frame.get_list_of_positions_by_tile("%"), 1)  # stairs
-        self.set_channel_relative(player_position, state, 0, current_frame.get_list_of_positions_by_tile("|"), 8)  # walls
-        self.set_channel_relative(player_position, state, 0, current_frame.get_list_of_positions_by_tile("-"), 8)  # walls
-        self.set_channel_relative(player_position, state, 0, current_frame.get_list_of_positions_by_tile("+"), 1)  # doors
-        self.set_channel_relative(player_position, state, 0, current_frame.get_list_of_positions_by_tile("#"), 1)  # tunnel
+        self.set_channel_relative(self.player_position, state, 0, current_frame.get_list_of_positions_by_tile("%"), 1)  # stairs
+        self.set_channel_relative(self.player_position, state, 0, current_frame.get_list_of_positions_by_tile("|"), 8)  # walls
+        self.set_channel_relative(self.player_position, state, 0, current_frame.get_list_of_positions_by_tile("-"), 8)  # walls
+        self.set_channel_relative(self.player_position, state, 0, current_frame.get_list_of_positions_by_tile("+"), 1)  # doors
+        self.set_channel_relative(self.player_position, state, 0, current_frame.get_list_of_positions_by_tile("#"), 1)  # tunnel
 
         return state
 
@@ -148,12 +160,10 @@ class CroppedView_SingleLayer_17x17_3_StateGenerator(CroppedView_SingleLayer_17x
     def build_state(self, current_frame, frame_history):
         state = self.empty_state()
 
-        player_position = current_frame.get_list_of_positions_by_tile("@")[0]
-
-        self.set_channel_relative(player_position, state, 0, current_frame.get_list_of_positions_by_tile("%"), 1)  # stairs
-        self.set_channel_relative(player_position, state, 0, current_frame.get_list_of_positions_by_tile("|"), 8)  # walls
-        self.set_channel_relative(player_position, state, 0, current_frame.get_list_of_positions_by_tile("-"), 8)  # walls
-        self.set_channel_relative(player_position, state, 0, current_frame.get_list_of_positions_by_tile("+"), 16)  # doors
-        self.set_channel_relative(player_position, state, 0, current_frame.get_list_of_positions_by_tile("#"), 16)  # tunnel
+        self.set_channel_relative(self.player_position, state, 0, current_frame.get_list_of_positions_by_tile("%"), 1)  # stairs
+        self.set_channel_relative(self.player_position, state, 0, current_frame.get_list_of_positions_by_tile("|"), 8)  # walls
+        self.set_channel_relative(self.player_position, state, 0, current_frame.get_list_of_positions_by_tile("-"), 8)  # walls
+        self.set_channel_relative(self.player_position, state, 0, current_frame.get_list_of_positions_by_tile("+"), 16)  # doors
+        self.set_channel_relative(self.player_position, state, 0, current_frame.get_list_of_positions_by_tile("#"), 16)  # tunnel
 
         return state

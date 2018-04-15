@@ -461,8 +461,6 @@ class RogueBox:
         :return:
             (reward, state, won, lost)
         """
-
-        old_screen = self.screen
         self.pipe.write(command.encode())
         # rogue may not properly print all tiles after elaborating a command
         # so, based on the init options, we send a refresh command
@@ -502,8 +500,7 @@ class RogueBox:
         stop = self.evaluator.on_step(self.frame_history, command, self.reward, self.step_count)
         lost = (stop or is_rogue_dead or entered_loop) and not won
 
-        is_run_over = stop or is_rogue_dead or won
-        if is_run_over:
+        if won or lost:
             self.evaluator.on_run_end(self.frame_history, won, is_rogue_dead)
 
         return self.reward, self.state, won, lost

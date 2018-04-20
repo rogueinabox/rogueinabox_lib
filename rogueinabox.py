@@ -436,12 +436,8 @@ class RogueBox:
             expected_cmd_count += dismiss_cmds
             try:
                 # very rarely, the screen does not completely refresh
-                # in particular the status bar may not be totally drawn
-                # in principle this means we could get a lower cmd count (if some but not all the digits were drawn)
-                bak_cmd_count = new_cmd_count
+                # in particular the status bar (and cmd count) may not be totally drawn
                 new_cmd_count = self.parser.get_cmd_count(self.screen)
-                if new_cmd_count < bak_cmd_count:
-                    new_cmd_count = bak_cmd_count
             except RuntimeError:
                 # screen was not fully refreshed and did not contain yet the cmd count
                 pass

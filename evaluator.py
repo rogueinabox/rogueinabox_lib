@@ -103,7 +103,7 @@ class RogueEvaluator:
         # average stats across all episodes
         n_episodes = len(evaluated_episodes)
         if n_episodes > 0:
-            result["win_steps_avg"] /= result["win_perc"]
+            result["win_steps_avg"] /= max(result["win_perc"], 1)
             result["win_perc"] /= n_episodes
             result["all_steps_avg"] /= n_episodes
             result["reward_avg"] /= n_episodes

@@ -215,11 +215,10 @@ class BaseAgent(ABC):
         """
         terminal = self.act()
         self.ui.draw_from_rogue()
-        if not (self.rb.game_over() or terminal):
-            # renew the callback
-            self._pending_action_timer = self.ui.on_timer_end(self._timer_value, self._act_callback)
-        else:
+        if self.rb.game_over() or terminal:
             self.game_over()
+        # renew the callback
+        self._pending_action_timer = self.ui.on_timer_end(self._timer_value, self._act_callback)
 
 
 class AgentWrapper(BaseAgent):

@@ -39,7 +39,7 @@ class StateGenerator(ABC):
         self.reset()
 
     def _subinit(self):
-        """Methods for subclasses that need more init logic"""
+        """Method for subclasses that need more init logic"""
         pass
 
     def reset(self):

@@ -1,3 +1,5 @@
+import os
+
 from .ui.UIManager import UIManager, UI
 from .rogueinabox import RogueBox
 from .logger import Logger, Log
@@ -218,3 +220,166 @@ class BaseAgent(ABC):
             self._pending_action_timer = self.ui.on_timer_end(self._timer_value, self._act_callback)
         else:
             self.game_over()
+
+
+class AgentWrapper(BaseAgent):
+    """
+    Wraps an Agent and all of its methods.
+
+    This is inteded to be used a superclass to add functionalities to an agent's method, without altering
+    the agent itself. By default, this class does not add anything.
+
+    N.B. wrapping agents with a custom ._act_callback() or .run() method is not supported,
+    please implement .act() instead.
+
+    Usage of a wrapper:
+        class MyWrapper(AgentWrapper):
+            ...
+
+        class MyAgent(BaseAgent):
+            ...
+
+        agent = MyAgent(...)
+        wrappedAgent = MyWrapper(agent)
+        # use wrapperAgent
+    """
+
+    def __init__(self, wrappedAgent):
+        """
+        :param BaseAgent wrappedAgent:
+            agent to wrap
+        """
+        self.wrapped = wrappedAgent
+        super().__init__(wrappedAgent.configs)
+
+    def _replace_timer_cb(self, ui=None):
+        """
+        Replaces the ui timer callback of the wrapped agent with the wrapper's callback
+
+        :param ui:
+            ui to use, use None for self.ui
+        """
+        ui = ui or self.ui
+        ui.cancel_timer(self.wrapped._pending_action_timer)
+        self._pending_action_timer = ui.on_timer_end(self._timer_value, self._act_callback)
+
+    def _create_rogue(self, configs):
+        return self.wrapped.rb
+
+    def _create_ui(self, configs):
+        ui = self.wrapped.ui
+
+        if ui is not None:
+            # replace key pressed callback
+            ui.on_key_press(self._keypress_callback)
+            # replace timer callback
+            self._timer_value = configs["gui_timer_ms"]
+            self._replace_timer_cb(ui)
+
+        return ui
+
+    def _create_logger(self, configs):
+        return self.wrapped.logger
+
+    def _keypress_callback(self, event):
+        res = self.wrapped._keypress_callback(event)
+        self._replace_timer_cb()
+        return res
+
+    def _act_callback(self):
+        """
+        Ignore wrapped ._act_callback() method, this is why agents that customized it are not supported.
+        This is necessary otherwise the wrapped agent would call its own .act() method instead of the wrapper's.
+        """
+        super()._act_callback()
+
+    def act(self):
+        return self.wrapped.act()
+
+    def run(self):
+        """
+        Ignore wrapped .run() method, this is why agents that customized it are not supported.
+        This is necessary otherwise the wrapped agent would call its own .act() method instead of the wrapper's.
+        """
+        return super().run()
+
+    def game_over(self):
+        return self.wrapped.game_over()
+
+
+class RecordingWrapper(AgentWrapper):
+    """
+    Agent wrapper that records the succession of frames.
+
+    Usage:
+        class CustomAgent(BaseAgent):
+            ...
+
+        recordedAgent = RecordingWrapper(CustomAgent(...))
+        recordedAgent.run()
+
+    """
+
+    def __init__(self, wrappedAgent, record_dir='video', reset_key='rR'):
+        """
+        :param BaseAgent wrappedAgent:
+            agent to wrap
+        :param str record_dir:
+            path to the directory where to record frames
+        :param str reset_key:
+            key used to reset the game, use this if your custom agent uses a different key than the default
+        """
+        super().__init__(wrappedAgent)
+
+        os.makedirs(record_dir, exist_ok=True)
+
+        self.record_dir = record_dir
+        self.episode_index = 0
+        self.step_count = 0
+        self.reset_key = reset_key
+
+        self.game_over()
+
+    def _new_episode(self):
+        """
+        Registers the beginning of a new episode and records the starting screen
+        """
+        self.episode_index += 1
+        self.step_count = 0
+        self.record_screen()
+
+    def act(self):
+        """
+        Acts according to the wrapped agent then records the resulting screen
+        """
+        res = super().act()
+        self.step_count += 1
+        self.record_screen()
+        return res
+
+    def _keypress_callback(self, event):
+        """
+        Registers the beginning of a new episode in case the game is reset
+
+        :param event:
+            key pressed event
+        """
+        res = super()._keypress_callback(event)
+        if event.char in self.reset_key:
+            self._new_episode()
+        return res
+
+    def game_over(self):
+        super().game_over()
+        self._new_episode()
+
+    def record_screen(self):
+        """
+        Records the current rogue frame on file in the directory specified during init
+        """
+        screen = self.rb.get_screen()[:]
+        step = str(self.step_count)
+        step = '0' * (3 - len(step)) + step
+        fname = os.path.join(self.record_dir, 'ep%sst%s.txt' % (self.episode_index, step))
+        with open(fname, mode='w') as file:
+            print(*screen, sep='\n', file=file)

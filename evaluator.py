@@ -38,6 +38,7 @@ class RogueEvaluator:
             reward obtained
         :param int step:
             rougueinabox step number
+
         :rtype: bool
         :return:
             True if the run should stop
@@ -119,3 +120,104 @@ class Episode:
         self.steps = 0
         self.final_tiles_count = 0
         self.total_reward = 0
+
+
+class LevelsRogueEvaluator(RogueEvaluator):
+
+    def on_run_begin(self):
+        """Records the beginning of a run"""
+        self.last_level = 1
+        self.current_episode = LevelsEpisode()
+
+    def on_step(self, frame_history, action, reward, step):
+        """Records a step taken by the agent during the run and returns whether the run should stop
+
+        :param list[frame_info.RogueFrameInfo] frame_history:
+            list of parsed frames until now
+        :param str action:
+            action performed
+        :param float reward:
+            reward obtained
+        :param int step:
+            rougueinabox step number
+
+        :rtype: bool
+        :return:
+            True if the run should stop
+        """
+        stop = super().on_step(frame_history, action, reward, step)
+
+        if frame_history[-1].has_statusbar():
+            level = frame_history[-1].statusbar["dungeon_level"]
+            if level > self.last_level:
+                # count the tiles of the frame of the previous level
+                self.current_episode.final_tiles_count += frame_history[-2].get_known_tiles_count()
+
+                # add as many 'levels_steps' entries as needed, considering even the case of advancing multiple levels
+                # in a single frame
+                diff = level - self.last_level
+                self.current_episode.levels_steps.extend([self.current_episode.steps]*diff)
+                self.last_level = level
+
+        return stop
+
+    def on_run_end(self, frame_history, won, is_rogue_dead):
+        """Records the end of a run
+
+        :param list[frame_info.RogueFrameInfo] frame_history:
+            list of parsed frames
+        :param bool won:
+            whether the game was won, according to a reward generator
+        :param bool is_rogue_dead:
+            whether the rogue died
+        """
+        self.current_episode.won = won
+        self._add_episode(self.current_episode)
+
+    def statistics(self):
+        """
+        :return:
+            dict of statistics:
+            {
+             "win_perc": float,         # % of victories, as determined by the reward generator
+             "reward_avg": float,       # cumulative reward average
+             "tiles_avg": float,        # average number of tiles seen
+             "all_steps_avg": float,    # average number of steps taken in all episodes
+             "win_steps_avg": float     # average number of steps taken in won episodes
+             "lvls_avg": [float]        # average number of times each level is reached
+             "lvls_steps_avg": [float]  # average number of steps taken to reach each level
+            }
+        """
+        result = super().statistics()
+
+        evaluated_episodes = self.episodes
+        # accumulate stats for each episode
+        lvls_avg = []
+        lvls_steps_avg = []
+        for e in evaluated_episodes:
+            if len(e.levels_steps) > 0:
+                diff = len(e.levels_steps) - len(lvls_avg)
+                if diff > 0:
+                    lvls_avg.extend([0]*diff)
+                    lvls_steps_avg.extend([0]*diff)
+                for i, steps in enumerate(e.levels_steps):
+                    lvls_avg[i] += 1
+                    lvls_steps_avg[i] += steps
+
+        # average stats across all episodes
+        n_episodes = len(evaluated_episodes)
+        for i, (reached, steps) in enumerate(zip(lvls_avg, lvls_steps_avg)):
+            lvls_steps_avg[i] = steps / reached
+            lvls_avg[i] = reached / n_episodes
+
+        result["lvls_avg"] = lvls_avg
+        result["lvls_steps_avg"] = lvls_steps_avg
+
+        return result
+
+
+class LevelsEpisode(Episode):
+    """Game episode representation with stats per level"""
+    def __init__(self):
+        super().__init__()
+        self.levels_steps = []

@@ -1,7 +1,7 @@
 import os
 
 from .ui.UIManager import UIManager, UI
-from .rogueinabox import RogueBox
+from .rogueinabox import RogueBox, RogueOptions
 from .logger import Logger, Log
 from abc import ABC, abstractmethod
 
@@ -26,9 +26,9 @@ class BaseAgent(ABC):
                 "rogue": str
                     rogue game executable path
                     Default: rogueinabox's custom build executable
-                "use_monsters": bool
-                    whether to use monsters (N.B. "rogue" key should be None for this to have any effect)
-                    Default: True
+                "rogue_options": RogueOptions
+                    options object (N.B. "rogue" key should be None for this to have any effect)
+                    Default: RogueOptions()
                 "gui": bool
                     whether to display the game played by the agent in a window
                     Default: True
@@ -88,7 +88,7 @@ class BaseAgent(ABC):
             dict to fill
         """
         configs.setdefault("rogue", None)
-        configs.setdefault("use_monsters", True)
+        configs.setdefault("rogue_options", RogueOptions())
         configs.setdefault("gui", True)
         configs.setdefault("userinterface", "tk")
         configs.setdefault("gui_timer_ms", 100)
@@ -112,7 +112,7 @@ class BaseAgent(ABC):
         :rtype: RogueBox
         """
         rb = RogueBox(game_exe_path=configs["rogue"],
-                      use_monsters=configs["use_monsters"],
+                      rogue_options=configs["rogue_options"],
                       max_step_count=configs["max_step_count"],
                       episodes_for_evaluation=configs["episodes_for_evaluation"],
                       evaluator=configs["rogue_evaluator"],

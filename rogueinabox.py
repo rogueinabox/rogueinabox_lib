@@ -20,9 +20,9 @@ import os
 import fcntl
 import pty
 import signal
-import shlex
 import pyte
 import shutil
+import random
 import warnings
 
 from .parser import RogueParser
@@ -47,18 +47,15 @@ class Terminal:
         return self.screen.display
 
 
-def open_terminal(command="bash", columns=80, lines=24):
+def open_terminal(command, args, columns=80, lines=24):
+    """Starts a child process executing the given command with args"""
+
     p_pid, master_fd = pty.fork()
     if p_pid == 0:  # Child.
-        path, *args = shlex.split(command)
-        args = [path] + args
+        args = [command] + args
         env = dict(TERM="linux", LC_ALL="en_GB.UTF-8",
                    COLUMNS=str(columns), LINES=str(lines))
-        try:
-            os.execvpe(path, args, env)
-        except FileNotFoundError:
-            print("Could not find the executable in %s. Press any key to exit." % path)
-            exit()
+        os.execvpe(command, args, env)
 
     # set non blocking read
     flag = fcntl.fcntl(master_fd, fcntl.F_GETFD)
@@ -66,6 +63,57 @@ def open_terminal(command="bash", columns=80, lines=24):
     # File-like object for I/O with the child process aka command.
     p_out = os.fdopen(master_fd, "w+b", 0)
     return Terminal(columns, lines), p_pid, p_out
+
+
+class RogueOptions:
+    """Rogue command line parameters object for the custom rogue build"""
+
+    def __init__(self, use_monsters=True, enable_secrets=True, seed=None, fixed_seed=False, amulet_level=26,
+                 hungertime=1300, max_traps=0):
+        """
+        :param bool use_monsters:
+            whether to enable monsters
+        :param bool enable_secrets:
+            whether to enable hidden tiles
+        :param int seed:
+            sets the random seed of the game
+        :param bool fixed_seed:
+            whether to keep the same seed every time the arguments are generated (i.e. the game is reset)
+        :param int amulet_level:
+            sets the level where the amulet of Yendor will be
+        :param int hungertime:
+            sets the number of steps after which the rouge becomes faint
+        :param int max_traps:
+            sets the maximum number of traps
+        """
+        self.use_monsters = use_monsters
+        self.enable_secrets = enable_secrets
+        self.seed = seed
+        self.fixed_seed = fixed_seed
+        self.amulet_level = amulet_level
+        self.hungertime = hungertime
+        self.max_traps = max_traps
+
+        self._rng = random.Random()
+        self._seed = None  # current seed for the next args generation
+
+        if not fixed_seed:
+            self.set_seed(seed)
+
+    def set_seed(self, seed):
+        self._rng.seed(seed)
+        self._seed = seed if seed is not None else self._rng.getrandbits(32)
+
+    def generate_args(self):
+        args= ['--disable-monsters' if not self.use_monsters else '',
+               '--disable-secrets' if not self.enable_secrets else '',
+               ('--seed=%s' % self._seed) if self._seed is not None else '',
+               ('--amulet-level=%s' % self.amulet_level),
+               ('--hungertime=%s' % self.hungertime),
+               ('--max-traps=%s' % self.max_traps)]
+        if not self.fixed_seed:
+            self._seed = self._rng.getrandbits(32)
+        return args
 
 
 class RogueBox:
@@ -98,13 +146,13 @@ class RogueBox:
         return ['h', 'j', 'k', 'l', '>']
 
     @staticmethod
-    def default_game_exe_path(use_monsters=True):
-        exe_name = 'rogue_monsters' if use_monsters else 'rogue_without_monsters'
+    def default_game_exe_path():
+        exe_name = 'rogue'
         this_file_dir = os.path.dirname(os.path.realpath(__file__))
         rogue_path = os.path.join(this_file_dir, 'rogue', exe_name)
         return rogue_path
 
-    def __init__(self, game_exe_path=None, use_monsters=True,
+    def __init__(self, game_exe_path=None, rogue_options=RogueOptions(),
                  max_step_count=500, episodes_for_evaluation=200, evaluator=None,
                  state_generator="Dummy_StateGenerator", reward_generator="Dummy_RewardGenerator",
                  refresh_after_commands=True, start_game=False, move_rogue=False,
@@ -112,10 +160,9 @@ class RogueBox:
         """
         :param str game_exe_path:
             rogue executable path.
-            If None, will use the default executable in the rogue git submodule, either "./rogue/rogue_monsters"
-            or "./rogue/rogue_without_monsters", depending on the "use_monsters" parameter.
-        :param bool use_monsters:
-            whether to enable monsters in the game.
+            If None, will use the default executable in the rogue git submodule
+        :param RogueOptions rogue_options:
+            custom rogue build parameters
             N.B. this is used only if parameter "game_exe_path" is None
         :param int max_step_count:
             maximum number of steps before declaring the game lost.
@@ -153,10 +200,18 @@ class RogueBox:
         :param float max_busy_wait_seconds:
             maximum amount of seconds that will be waited for before assuming the game has entered an endless loop
         """
-        self.rogue_path = game_exe_path or self.default_game_exe_path(use_monsters=use_monsters)
-        if not shutil.which(self.rogue_path):
+        if game_exe_path:
+            self._default_exe = False
+            self.rogue_path = game_exe_path
+        else:
+            self._default_exe = True
+            self.rogue_path = self.default_game_exe_path()
+
+        is_executable = shutil.which(self.rogue_path)
+        if not is_executable:
             raise ValueError('game_exe_path "%s" is not executable' % self.rogue_path)
 
+        self.rogue_options = rogue_options
         self.parser = RogueParser()
 
         if evaluator is None:
@@ -220,7 +275,8 @@ class RogueBox:
         self.state_generator.reset()
 
         # start game process
-        self.terminal, self.pid, self.pipe = open_terminal(command=self.rogue_path)
+        rogue_args = self.rogue_options.generate_args() if self._default_exe else []
+        self.terminal, self.pid, self.pipe = open_terminal(command=self.rogue_path, args=rogue_args)
 
         if not self.is_running():
             print("Could not find the executable in %s." % self.rogue_path)

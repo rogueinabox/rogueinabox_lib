@@ -1,7 +1,8 @@
 import os
 
 from .ui.UIManager import UIManager, UI
-from .rogueinabox import RogueBox, RogueOptions
+from .rogueinabox import RogueBox
+from .options import AgentOptions
 from .logger import Logger, Log
 from abc import ABC, abstractmethod
 
@@ -16,142 +17,60 @@ class BaseAgent(ABC):
     A logger is instantiated in attribute .logger that provides a simple api for logging messages, abstracting the
     underlying media, i.e. the terminal, the ui and the log file.
 
-    The constructor accepts a configuration parameter, see __init__ for details.
+    The constructor accepts an AgentOptions object, see its documentation for details.
     """
 
-    def __init__(self, configs):
+    def __init__(self, options=AgentOptions()):
         """
-        :param dict configs:
-            configuration dictionary, the following keys are supported:
-                "rogue": str
-                    rogue game executable path
-                    Default: rogueinabox's custom build executable
-                "rogue_options": RogueOptions
-                    options object (N.B. "rogue" key should be None for this to have any effect)
-                    Default: RogueOptions()
-                "gui": bool
-                    whether to display the game played by the agent in a window
-                    Default: True
-                "userinterface": "tk" | "curses"
-                    ui to be used
-                    Default: "tk"
-                "gui_timer_ms": int
-                    time interval in milliseconds between each action
-                    Default: 100
-                "max_step_count": int
-                    maximum number of steps per episode
-                    N.B. this is used only if key "rogue_evaluator" is None
-                    Default: 500
-                "episodes_for_evaluation": int
-                    number of latest episode to consider when computing statistics.
-                    N.B. this is used only if key "rogue_evaluator" is None
-                    Default: 200
-                "rogue_evaluator": evaluator
-                    agent evaluator. If None, the default evaluator will be used.
-                    Default: None
-                "state_generator": states.StateGenerator
-                    state generator to be used
-                    Default: "Dummy_StateGenerator"
-                "reward_generator": rewards.RewardGenerator
-                    state generator to be used
-                    Default: "Dummy_RewardGenerator"
-                "refresh_after_commands": bool
-                    whether to issue a refresh command after each action
-                    Default: True
-                "move_rogue": bool
-                    whether to perform a legal move as soon as the game is started
-                    Default: False
-                "busy_wait_seconds": float
-                    amount of sleep seconds for each busy wait iteration
-                    Default: 0.0005
-                "max_busy_wait_seconds: float
-                    max amount of seconds that will be waited for before assuming the game has entered an endless loop
-                    Default: 5
-                "log_filepath": str
-                    log file path
-                    Default: "logfile.log"
-                "log_depth": int
-                    maximum log depth, see Logger
-                    Default: 0
+        :param AgentOptions options:
+            agent option object, see its documentation
         """
-        self._fill_default_configs(configs)
-        self.configs = configs
-        self.rb = self._create_rogue(configs)
-        self.ui = self._create_ui(configs)
-        self.logger = self._create_logger(configs)
+        self.options = options
+        self.rb = self._create_rogue(options)
+        self.ui = self._create_ui(options)
+        self.logger = self._create_logger(options)
 
-    @staticmethod
-    def _fill_default_configs(configs):
-        """Fills the given configuration dict with the default values, according to the __init__ documentation
-
-        :param dict configs:
-            dict to fill
-        """
-        configs.setdefault("rogue", None)
-        configs.setdefault("rogue_options", RogueOptions())
-        configs.setdefault("gui", True)
-        configs.setdefault("userinterface", "tk")
-        configs.setdefault("gui_timer_ms", 100)
-        configs.setdefault("max_step_count", 500)
-        configs.setdefault("episodes_for_evaluation", 200)
-        configs.setdefault("rogue_evaluator", None)
-        configs.setdefault("state_generator", "Dummy_StateGenerator")
-        configs.setdefault("reward_generator", "Dummy_RewardGenerator")
-        configs.setdefault("refresh_after_commands", True)
-        configs.setdefault("move_rogue", False)
-        configs.setdefault("busy_wait_seconds", 0.0005)
-        configs.setdefault("max_busy_wait_seconds", 5)
-        configs.setdefault("log_filepath", "logfile.log")
-        configs.setdefault("log_depth", 0)
-
-    def _create_rogue(self, configs):
+    def _create_rogue(self, options):
         """Returns a RogueBox instance to interact with the game
 
-        :param dict configs:
-            configuration dictionary, see __init__
+        :param AgentOptions options:
+            agent option object, see its documentation
+
         :rtype: RogueBox
         """
-        rb = RogueBox(game_exe_path=configs["rogue"],
-                      rogue_options=configs["rogue_options"],
-                      max_step_count=configs["max_step_count"],
-                      episodes_for_evaluation=configs["episodes_for_evaluation"],
-                      evaluator=configs["rogue_evaluator"],
-                      state_generator=configs["state_generator"],
-                      reward_generator=configs["reward_generator"],
-                      refresh_after_commands=configs["refresh_after_commands"],
-                      start_game=True,
-                      move_rogue=configs["move_rogue"],
-                      busy_wait_seconds=configs["busy_wait_seconds"],
-                      max_busy_wait_seconds=configs["max_busy_wait_seconds"])
+        options.roguebox_options.start_game = True
+        rb = RogueBox(options=options.roguebox_options)
         return rb
 
-    def _create_ui(self, configs):
+    def _create_ui(self, options):
         """Returns the user interface to display the game
 
-        :param dict configs:
-            configuration dictionary, see __init__
+        :param AgentOptions options:
+            agent option object, see its documentation
+
         :rtype: UI
         """
-        if configs["gui"]:
+        if options.gui:
             self._pending_action_timer = None
-            ui = UIManager.init(configs["userinterface"], self.rb)
+            ui = UIManager.init(options.userinterface, self.rb)
             ui.on_key_press(self._keypress_callback)
-            self._timer_value = configs["gui_timer_ms"]
+            self._timer_value = options.gui_timer_ms
             self._pending_action_timer = ui.on_timer_end(self._timer_value, self._act_callback)
             return ui
         return None
 
-    def _create_logger(self, configs):
+    def _create_logger(self, options):
         """Returns a logger
 
-        :param configs:
-            configuration dictionary, see __init__
+        :param AgentOptions options:
+            agent option object, see its documentation
+
         :rtype: Logger
         """
-        targets = ["ui" if configs["gui"] else "terminal", "file"]
-        return Logger(log_depth=configs["log_depth"],
+        targets = ["ui" if options.gui else "terminal", "file"]
+        return Logger(log_depth=options.log_depth,
                       log_targets=targets,
-                      filepath=configs["log_filepath"],
+                      filepath=options.log_filepath,
                       ui=self.ui)
 
     @abstractmethod
@@ -206,7 +125,7 @@ class BaseAgent(ABC):
             self._pending_action_timer = self.ui.on_timer_end(self._timer_value, self._act_callback)
 
     def _act_callback(self):
-        """Called every configs["gui_timer_ms"] millisecods.
+        """Called every options.gui_timer_ms millisecods.
 
         By default:
             - executes an action
@@ -249,7 +168,7 @@ class AgentWrapper(BaseAgent):
             agent to wrap
         """
         self.wrapped = wrappedAgent
-        super().__init__(wrappedAgent.configs)
+        super().__init__(wrappedAgent.options)
 
     def _replace_timer_cb(self, ui=None):
         """
@@ -262,22 +181,22 @@ class AgentWrapper(BaseAgent):
         ui.cancel_timer(self.wrapped._pending_action_timer)
         self._pending_action_timer = ui.on_timer_end(self._timer_value, self._act_callback)
 
-    def _create_rogue(self, configs):
+    def _create_rogue(self, options):
         return self.wrapped.rb
 
-    def _create_ui(self, configs):
+    def _create_ui(self, options):
         ui = self.wrapped.ui
 
         if ui is not None:
             # replace key pressed callback
             ui.on_key_press(self._keypress_callback)
             # replace timer callback
-            self._timer_value = configs["gui_timer_ms"]
+            self._timer_value = options.gui_timer_ms
             self._replace_timer_cb(ui)
 
         return ui
 
-    def _create_logger(self, configs):
+    def _create_logger(self, options):
         return self.wrapped.logger
 
     def _keypress_callback(self, event):

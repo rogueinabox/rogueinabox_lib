@@ -210,6 +210,10 @@ class LevelsRogueEvaluator(RogueEvaluator):
             lvls_steps_avg[i] = steps / reached
             lvls_avg[i] = reached / n_episodes
 
+        if len(lvls_avg) == 0:
+            # level 2 was never reached, so the average of the number of times it was reached is zero
+            lvls_avg = [0]
+
         result["lvls_avg"] = lvls_avg
         result["lvls_steps_avg"] = lvls_steps_avg
 

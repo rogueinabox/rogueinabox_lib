@@ -138,6 +138,20 @@ class StateGenerator(ABC):
         """
         return np.zeros(self._shape, dtype=np.uint8)
 
+    @staticmethod
+    def filter_out_hidden(pos_list, frame_info):
+        """Filters out positions that are currently hidden on the screen
+
+        :param list[tuple[int,int]] pos_list:
+            positions to be filtered
+        :param roguelib_module.frame_info.RogueFrameInfo frame_info:
+            parsed frame where to check if the positions are hidden
+
+        :return:
+            filtered pos_list
+        """
+        return filter(lambda x: frame_info.screen[x[0]+1][x[1]] != ' ', pos_list)
+
 
 class Dummy_StateGenerator(StateGenerator):
     """Dummy generator that always returns None"""

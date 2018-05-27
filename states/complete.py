@@ -5,6 +5,8 @@ from .base import StateGenerator
 class FullMap_StateGenerator(StateGenerator):
     """Generates a 22x80 state comprising the entire map composed of 'channels' layers, inserting the position
     of tiles in configurable layers and values, e.g. the stairs in layer 'stairs_channel' with value 'stairs_value'.
+    Also, if 'forget_hidden_floors' is True the generator hides floor tiles that are not currently visible but were
+    so in a previous frame (e.g. when moving in dark rooms).
 
     By default, two channels are built:
         first channel:
@@ -28,6 +30,7 @@ class FullMap_StateGenerator(StateGenerator):
 
     floor_channel     = 0
     floor_value       = 0
+    forget_hidden_floors = True
 
     stairs_channel    = 1
     stairs_value      = 10
@@ -62,8 +65,10 @@ class FullMap_StateGenerator(StateGenerator):
                          current_frame.get_list_of_positions_by_tile("#"), self.corridors_value)
 
         if self.floor_value != 0:
-            self.set_channel(state, self.floor_channel,
-                             current_frame.get_list_of_positions_by_tile("."), self.floor_value)
+            floors = current_frame.get_list_of_positions_by_tile(".")
+            if self.forget_hidden_floors:
+                floors = self.filter_out_hidden(floors, current_frame)
+            self.set_channel(state, self.floor_channel, floors, self.floor_value)
 
         return state
 

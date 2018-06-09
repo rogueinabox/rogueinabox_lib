@@ -69,7 +69,7 @@ class ImprovedStairSeeker_RewardGenerator(StairSeeker_RewardGenerator):
     def get_value(self, frame_history):
         old_info = frame_history[-2]
         new_info = frame_history[-1]
-        if old_info.get_tile_below_player() == '+':
+        if new_info.get_tile_below_player() == '+':
             if new_info.get_tile_count("#") > old_info.get_tile_count("#"):  # has started to explore
                 return 1
         return super().get_value(frame_history)

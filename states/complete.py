@@ -15,6 +15,7 @@ class FullMap_StateGenerator(StateGenerator):
         second channel:
             - rogue, covers the stairs if they are present (value: 1)
             - stairs (value: 10)
+            - amulet (value: 100)
     """
 
     channels = 2
@@ -35,6 +36,9 @@ class FullMap_StateGenerator(StateGenerator):
     stairs_channel    = 1
     stairs_value      = 10
 
+    amulet_channel    = 1
+    amulet_value      = 100
+
     rogue_channel     = 1
     rogue_value       = 1
 
@@ -47,6 +51,10 @@ class FullMap_StateGenerator(StateGenerator):
         # stairs
         self.set_channel(state, self.stairs_channel,
                          current_frame.get_list_of_positions_by_tile("%"), self.stairs_value)
+
+        # amulet
+        self.set_channel(state, self.amulet_channel,
+                         current_frame.get_list_of_positions_by_tile(","), self.amulet_value)
 
         # rogue (covers the stairs if they are present)
         self.set_channel(state, self.rogue_channel,
@@ -83,9 +91,10 @@ class FullMap_5L_StateGenerator(FullMap_StateGenerator):
             - floor
         channel 3:
             - stairs
+            - amulet (value: 10)
         channel 4:
             - rogue
-        All values are 1.
+        All unspecified values are 1.
     """
 
     channels = 5
@@ -105,5 +114,31 @@ class FullMap_5L_StateGenerator(FullMap_StateGenerator):
     stairs_channel    = 3
     stairs_value      = 1
 
+    amulet_channel    = 3
+    amulet_value      = 10
+
     rogue_channel     = 4
     rogue_value       = 1
+
+
+class FullMap_6L_StateGenerator(FullMap_5L_StateGenerator):
+    """Generates a 22x80 state comprising the entire map composed of 5 channels:
+            channel 0:
+                - walls
+            channel 1:
+                - doors and corridors
+            channel 2:
+                - floor
+            channel 3:
+                - stairs
+            channel 4:
+                - rogue
+            channel 5:
+                - amulet
+            All values are 1.
+        """
+
+    channels = 6
+
+    amulet_channel = 5
+    amulet_value   = 1

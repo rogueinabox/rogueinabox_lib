@@ -13,6 +13,13 @@ class RogueFrameInfo:
         self.statusbar = statusbar
         self.screen = screen
 
+    def is_victory_frame(self):
+        """Returns whether this a victory frame"""
+        try:
+            return self.screen[9].startswith('     Congratulations')
+        except (IndexError, AttributeError):
+            return False
+
     def get_tile_below_player(self):
         """Returns the tile below the player, which is not visible on the screen"""
         pos = self.get_player_pos()

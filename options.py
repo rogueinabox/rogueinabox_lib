@@ -58,6 +58,7 @@ class RogueBoxOptions:
     def __init__(self, game_exe_path=None, rogue_options=RogueOptions(),
                  max_step_count=500, episodes_for_evaluation=200, evaluator=None,
                  state_generator="Dummy_StateGenerator", reward_generator="Dummy_RewardGenerator",
+                 transform_descent_action=False,
                  refresh_after_commands=True, start_game=False, move_rogue=False,
                  busy_wait_seconds=0.0005, max_busy_wait_seconds=5):
         """
@@ -88,6 +89,8 @@ class RogueBoxOptions:
             be use as a reward generator itself.
             This will be used to produce rewards when sending commands, unless another reward generator is provided
             at that time. See RogueBox.send_command()
+        :param bool transform_descent_action:
+            whether to turn descent actions '>' into ascent action '<' from the moment the amulet level is reached
         :param bool refresh_after_commands:
             whether to send screen refresh command to rogue after each command.
             This is useful because sometimes the game does not print every tile correctly, however it introduces
@@ -110,6 +113,7 @@ class RogueBoxOptions:
         self.evaluator = evaluator
         self.state_generator = state_generator
         self.reward_generator = reward_generator
+        self.transform_descent_action = transform_descent_action
         self.refresh_after_commands = refresh_after_commands
         self.start_game = start_game
         self.move_rogue = move_rogue

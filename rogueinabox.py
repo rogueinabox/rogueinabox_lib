@@ -144,6 +144,9 @@ class RogueBox:
         else:
             self.state_generator = options.state_generator
 
+        self.transform_descent_action = options.transform_descent_action
+        self.reached_amulet_level = False
+
         self.refresh_after_commands = options.refresh_after_commands
         self.refresh_command = '\x12'.encode()
 
@@ -179,6 +182,7 @@ class RogueBox:
         self.parser.reset()
         self.reward_generator.reset()
         self.state_generator.reset()
+        self.reached_amulet_level = False
 
         # start game process
         rogue_args = self.rogue_options.generate_args() if self._default_exe else []
@@ -419,6 +423,12 @@ class RogueBox:
         :return:
             (reward, state, won, lost)
         """
+
+        # turn descent command into ascent if this was requested in init
+        if self.transform_descent_action and self.reached_amulet_level:
+            if command == '>':
+                command = '<'
+
         self.pipe.write(command.encode())
         # rogue may not properly print all tiles after elaborating a command
         # so, based on the init options, we send a refresh command
@@ -447,6 +457,13 @@ class RogueBox:
 
         new_screen = self.screen
         self.frame_history.append(self.parser.parse_screen(new_screen))
+
+        if self.transform_descent_action and not self.reached_amulet_level:
+            # check if the rogue reached the amulet level
+            last_frame = self.frame_history[-1]
+            if last_frame.has_statusbar():
+                if last_frame.statusbar["dungeon_level"] == self.rogue_options.amulet_level:
+                    self.reached_amulet_level = True
 
         state_generator = state_generator or self.state_generator
         reward_generator = reward_generator or self.reward_generator

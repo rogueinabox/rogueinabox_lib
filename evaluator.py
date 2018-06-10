@@ -225,3 +225,86 @@ class LevelsEpisode(Episode):
     def __init__(self):
         super().__init__()
         self.levels_steps = []
+
+
+class AmuletLevelsRogueEvaluator(LevelsRogueEvaluator):
+
+    def on_run_begin(self):
+        """Records the beginning of a run"""
+        self.last_level = 1
+        self.current_episode = AmuletLevelsEpisode()
+
+    def on_step(self, frame_history, action, reward, step):
+        """Records a step taken by the agent during the run and returns whether the run should stop
+
+        :param list[frame_info.RogueFrameInfo] frame_history:
+            list of parsed frames until now
+        :param str action:
+            action performed
+        :param float reward:
+            reward obtained
+        :param int step:
+            rougueinabox step number
+
+        :rtype: bool
+        :return:
+            True if the run should stop
+        """
+        stop = super().on_step(frame_history, action, reward, step)
+
+        if len(frame_history) >= 2:
+            old_info = frame_history[-2]
+            new_info = frame_history[-1]
+
+            amulet = old_info.get_list_of_positions_by_tile(',')
+            if len(amulet) > 0:
+                self.current_episode.amulet_found = True
+                try:
+                    if old_info.statusbar["dungeon_level"] == new_info.statusbar["dungeon_level"]:
+                        if amulet[0] == new_info.get_player_pos():
+                            self.current_episode.amulet_taken = True
+                except KeyError:
+                    pass
+
+        return stop
+
+    def statistics(self):
+        """
+        :return:
+            dict of statistics, with the same keys as LevelsRogueEvaluator, plus the following:
+            {
+             "am_found_avg": float,   # average number of episodes in which the amulet was found
+             "am_taken_avg": float    # average number of episodes in which the amulet was taken
+            }
+        """
+        result = super().statistics()
+
+        amulet_found_avg = 0
+        amulet_taken_avg = 0
+
+        evaluated_episodes = self.episodes
+
+        # accumulate stats for each episode
+        for e in evaluated_episodes:
+            if e.amulet_found:
+                amulet_found_avg += 1
+            if e.amulet_taken:
+                amulet_taken_avg += 1
+
+        # average stats across all episodes
+        n_episodes = len(evaluated_episodes)
+        if n_episodes > 0:
+            amulet_found_avg /= n_episodes
+            amulet_taken_avg /= n_episodes
+
+        result["am_found_avg"] = amulet_found_avg
+        result["am_taken_avg"] = amulet_taken_avg
+
+        return result
+
+
+class AmuletLevelsEpisode(LevelsEpisode):
+    def __init__(self):
+        super().__init__()
+        self.amulet_found = False
+        self.amulet_taken = False

@@ -4,7 +4,12 @@ import collections
 
 
 class RogueEvaluator:
-    """Implements the evaluation of an agent"""
+    """Implements the evaluation of an agent by keeping track of how many time it
+    accomplishes its goal, the return received, the number of steps it takes and the number of
+    tiles seen.
+
+    N.B.: this is meant for the first level only
+    """
 
     def __init__(self, max_step_count=500, episodes_for_evaluation=200):
         """
@@ -123,10 +128,17 @@ class Episode:
 
 
 class LevelsRogueEvaluator(RogueEvaluator):
+    """Evaluates an agent by keeping track of how many times it reaches each level and how many steps
+    it took, both when descending and ascending.
+
+    N.B.: this implementation supposes that when the agent starts ascending it will never descend again.
+          The behavior when this is not true is undefined.
+    """
 
     def on_run_begin(self):
         """Records the beginning of a run"""
         self.last_level = 1
+        self.just_changed_level = False
         self.current_episode = LevelsEpisode()
 
     def on_step(self, frame_history, action, reward, step):
@@ -147,17 +159,32 @@ class LevelsRogueEvaluator(RogueEvaluator):
         """
         stop = super().on_step(frame_history, action, reward, step)
 
-        if frame_history[-1].has_statusbar():
-            level = frame_history[-1].statusbar["dungeon_level"]
-            if level > self.last_level:
-                # count the tiles of the frame of the previous level
-                self.current_episode.final_tiles_count += frame_history[-2].get_known_tiles_count()
+        self.just_changed_level = False
 
-                # add as many 'levels_steps' entries as needed, considering even the case of advancing multiple levels
-                # in a single frame
-                diff = level - self.last_level
-                self.current_episode.levels_steps.extend([self.current_episode.steps]*diff)
-                self.last_level = level
+        last_frame = frame_history[-1]
+        level = None
+        if last_frame.has_statusbar():
+            level = frame_history[-1].statusbar["dungeon_level"]
+        elif last_frame.is_victory_frame():
+            level = 0
+
+        if level is not None and level != self.last_level:
+            self.just_changed_level = True
+
+            # count the tiles of the frame of the previous level
+            self.current_episode.final_tiles_count += frame_history[-2].get_known_tiles_count()
+
+            # add as many 'levels_steps' entries as needed, considering even the case of advancing multiple levels
+            # in a single frame
+            diff = level - self.last_level
+            descending = (diff > 0)
+            if descending:
+                levels_steps = self.current_episode.levels_steps
+            else:
+                diff *= -1
+                levels_steps = self.current_episode.ascending_levels_steps
+            levels_steps.extend([self.current_episode.steps]*diff)
+            self.last_level = level
 
         return stop
 
@@ -171,6 +198,11 @@ class LevelsRogueEvaluator(RogueEvaluator):
         :param bool is_rogue_dead:
             whether the rogue died
         """
+        if not self.just_changed_level:
+            last_frame = frame_history[-1]
+            if last_frame.is_victory_frame():
+                last_frame = frame_history[-2]
+            self.current_episode.final_tiles_count += last_frame.get_known_tiles_count()
         self.current_episode.won = won
         self._add_episode(self.current_episode)
 
@@ -179,43 +211,51 @@ class LevelsRogueEvaluator(RogueEvaluator):
         :return:
             dict of statistics:
             {
-             "win_perc": float,         # % of victories, as determined by the reward generator
-             "reward_avg": float,       # cumulative reward average
-             "tiles_avg": float,        # average number of tiles seen
-             "all_steps_avg": float,    # average number of steps taken in all episodes
-             "win_steps_avg": float     # average number of steps taken in won episodes
-             "lvls_avg": [float]        # average number of times each level is reached
-             "lvls_steps_avg": [float]  # average number of steps taken to reach each level
+             "win_perc": float,          # % of victories, as determined by the reward generator
+             "reward_avg": float,        # cumulative reward average
+             "tiles_avg": float,         # average number of tiles seen
+             "all_steps_avg": float,     # average number of steps taken in all episodes
+             "win_steps_avg": float,     # average number of steps taken in won episodes
+             "lvls_avg": [float],        # average number of times each level is reached
+             "lvls_steps_avg": [float],  # average number of steps taken to reach each level
+             "alvls_avg": [float],       # average number of times each level is ascended, in reverse order
+             "alvls_steps_avg": [float]  # average number of steps taken to ascend each level, in reverse order
             }
         """
         result = super().statistics()
 
         evaluated_episodes = self.episodes
-        # accumulate stats for each episode
-        lvls_avg = []
-        lvls_steps_avg = []
-        for e in evaluated_episodes:
-            if len(e.levels_steps) > 0:
-                diff = len(e.levels_steps) - len(lvls_avg)
-                if diff > 0:
-                    lvls_avg.extend([0]*diff)
-                    lvls_steps_avg.extend([0]*diff)
-                for i, steps in enumerate(e.levels_steps):
-                    lvls_avg[i] += 1
-                    lvls_steps_avg[i] += steps
 
-        # average stats across all episodes
-        n_episodes = len(evaluated_episodes)
-        for i, (reached, steps) in enumerate(zip(lvls_avg, lvls_steps_avg)):
-            lvls_steps_avg[i] = steps / reached
-            lvls_avg[i] = reached / n_episodes
+        # compute stats for descending and ascending levels
+        keys = [("lvls_avg", "lvls_steps_avg"), ("alvls_avg", "alvls_steps_avg")]
+        ep_attrs = ['levels_steps', 'ascending_levels_steps']
 
-        if len(lvls_avg) == 0:
-            # level 2 was never reached, so the average of the number of times it was reached is zero
-            lvls_avg = [0]
+        for k, ep_attr in zip(keys, ep_attrs):
 
-        result["lvls_avg"] = lvls_avg
-        result["lvls_steps_avg"] = lvls_steps_avg
+            # accumulate stats for each episode
+            lvls_avg = []
+            lvls_steps_avg = []
+            for e in evaluated_episodes:
+                ep_steps = getattr(e, ep_attr)
+                if len(ep_steps) > 0:
+                    diff = len(ep_steps) - len(lvls_avg)
+                    if diff > 0:
+                        lvls_avg.extend([0]*diff)
+                        lvls_steps_avg.extend([0]*diff)
+                    for i, steps in enumerate(ep_steps):
+                        lvls_avg[i] += 1
+                        lvls_steps_avg[i] += steps
+
+            # average stats across all episodes
+            n_episodes = len(evaluated_episodes)
+            for i, (reached, steps) in enumerate(zip(lvls_avg, lvls_steps_avg)):
+                lvls_steps_avg[i] = steps / reached
+                lvls_avg[i] = reached / n_episodes
+
+            k_rate, k_steps = k
+            if len(lvls_avg) > 0:
+                result[k_rate] = lvls_avg
+                result[k_steps] = lvls_steps_avg
 
         return result
 
@@ -225,9 +265,13 @@ class LevelsEpisode(Episode):
     def __init__(self):
         super().__init__()
         self.levels_steps = []
+        self.ascending_levels_steps = []
 
 
 class AmuletLevelsRogueEvaluator(LevelsRogueEvaluator):
+    """Evaluates an agent based on how many times it finds and takes the amulet and wins the game.
+    As a LevelsRogueEvaluator subclass, it will also track levels descent/ascent stats.
+    """
 
     def on_run_begin(self):
         """Records the beginning of a run"""

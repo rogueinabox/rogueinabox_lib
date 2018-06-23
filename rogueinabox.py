@@ -70,7 +70,11 @@ class RogueBox:
 
     Usage example:
 
-        rb = RogueBox(state_generator="SingleLayer_StateGenerator", reward_generator="StairSeeker_RewardGenerator")
+        rb = RogueBox(RogueBoxOptions(
+            state_generator='FullMap_StateGenerator',
+            reward_generator='StairsOnly_RewardGenerator',
+            max_step_count=500)
+        )
 
         # get actions list
         actions = rb.get_actions()
@@ -79,7 +83,8 @@ class RogueBox:
 
         terminal = False
         while not terminal:
-            act = compute_action(state, actions)
+            # implement action selection
+            act = select_action(state, actions)
             reward, state, won, lost = rb.send_command(act)
             terminal = won or lost
 

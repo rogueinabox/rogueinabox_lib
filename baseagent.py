@@ -35,6 +35,38 @@ class BaseAgent(ABC):
     underlying media, i.e. the terminal, the ui and the log file.
 
     The constructor accepts an AgentOptions object, see its documentation for details.
+
+
+    Usage example:
+
+        MyAgent(BaseAgent):
+
+            def act():
+                # get actions list
+                actions = rb.get_actions()
+                # get environment state
+                state = rb.get_current_state()
+
+                # implement action selection
+                act = select_action(state, actions, ...)
+                reward, next_state, won, lost = self.rb.send_command(act)
+
+                # return whether the episode is over, usually:
+                # return won or lost
+                return is_episode_over(...)
+
+        if __name__ == '__main__':
+            agent = MyAgent(AgentOptions(
+                gui=True,
+                userinterface='curses',
+                gui_timer_ms=100,
+                roguebox_options=RogueBoxOptions(
+                    state_generator='FullMap_StateGenerator',
+                    reward_generator='StairsOnly_RewardGenerator',
+                    max_step_count=500)
+            ))
+            agent.run()
+
     """
 
     def __init__(self, options=AgentOptions()):

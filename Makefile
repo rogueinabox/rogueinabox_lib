@@ -17,27 +17,26 @@
 
 all: install
 
-ENV_DIR ?= .env
+install: pydeps submodules-install build-rogue
 
-run:
+update: submodules-update build-rogue
+
+pydeps:
 	( \
-		. $(ENV_DIR)/bin/activate; \
-		python run.py; \
-	)
-
-install: makeenv installdeps
-
-makeenv:
-	if [ ! -d "$(ENV_DIR)" ]; then \
-		virtualenv -p python3 $(ENV_DIR); \
-	fi
-
-installdeps:
-	( \
-		. $(ENV_DIR)/bin/activate; \
 		pip install --upgrade pip; \
+		pip install --upgrade setuptools; \
 		pip install -r requirements.txt; \
 	)
 
-clean:
-	rm -rf $(ENV_DIR)
+submodules-install:
+	git submodule update --init --recursive
+
+submodules-update:
+	git submodule update --remote --recursive
+
+build-rogue:
+	( \
+		cd rogue; \
+		make; \
+		cd ..; \
+	)

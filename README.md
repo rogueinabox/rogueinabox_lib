@@ -1,5 +1,4 @@
-Rogueinabox: a Rogue environment for AI learning
-==========
+# Rogueinabox: a Rogue environment for AI learning
 
   Rogueinabox is a higly modular and configurable learning environment built around the videogame Rogue,
   the father of the roguelike genre.
@@ -8,16 +7,40 @@ Rogueinabox: a Rogue environment for AI learning
   providing several built-in state and reward generators and utilities for creating custom ones. 
 
 
-Cloning
--------
+## Cloning and building
 
-  This library comes with its own custom Rogue build, which has its own git repo and is included as a submodule.
-  In order for it to be correctly initialized and used, please clone this repo with the following command:
+  Clone the repository with the default git command:
   ```console
-  git clone --recurse-submodules https://gitlab.com/rogueinabox/roguelib_module.git
+  git clone <URL>
+  ```
+  
+  Then execute:
+  ```console
+  make install
+  ```
+  
+  This will pull our Rogue custom build (in a submodule) and build its executable.
+  
+#### Manual cloning and building
+
+  If you have trouble with the previous procedure,
+  here we describe an alternative more complete manual process.
+  This library comes with its own custom Rogue build,
+  which has its own git repository and is included as a submodule.
+  In order for it to be correctly initialized and used, you can either clone this repo
+  with the following command:
+  ```console
+  git clone --recurse-submodules <URL>
   ```
 
-  If you cloned without any flags, please run the following command from within your local repo directory:
+  Or you can clone it in the standard way and then run the following
+  from within your local repo directory:
   ```console
   git submodule update --init --recursive
+  ```
+  
+  After that, you need to enter in our custom Rogue build directory and make it:
+  ```console
+  cd rogue
+  make
   ```

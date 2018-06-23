@@ -81,7 +81,7 @@ class FullMap_StateGenerator(StateGenerator):
         return state
 
 
-class FullMap_5L_StateGenerator(FullMap_StateGenerator):
+class FullMap_5L_forget_StateGenerator(FullMap_StateGenerator):
     """Generates a 22x80 state comprising the entire map composed of 5 channels:
         channel 0:
             - walls
@@ -121,7 +121,13 @@ class FullMap_5L_StateGenerator(FullMap_StateGenerator):
     rogue_value       = 1
 
 
-class FullMap_6L_StateGenerator(FullMap_5L_StateGenerator):
+class FullMap_5L_remember_StateGenerator(FullMap_5L_forget_StateGenerator):
+    """See FullMap_5L_forget_StateGenerator. This version retains explored dark room tiles."""
+
+    forget_hidden_floors = False
+
+
+class FullMap_6L_forget_StateGenerator(FullMap_5L_forget_StateGenerator):
     """Generates a 22x80 state comprising the entire map composed of 5 channels:
             channel 0:
                 - walls

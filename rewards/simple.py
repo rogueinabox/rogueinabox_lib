@@ -59,12 +59,12 @@ class AmuletVictory_RewardGenerator(RewardGenerator):
         if not self.amulet_taken:
             amulet = old_info.get_list_of_positions_by_tile(',')
             try:
-                # todo: also check if same level between frames?
-                if amulet[0] == new_info.get_player_pos():
-                    self.amulet_taken = True
-                    return self.reward_value
-                return 0
-            except:
+                if old_info.statusbar["dungeon_level"] == new_info.statusbar["dungeon_level"]:
+                    if amulet[0] == new_info.get_player_pos():
+                        self.amulet_taken = True
+                        return self.reward_value
+                    return 0
+            except (IndexError, KeyError):
                 # amulet not visible
                 return 0
 

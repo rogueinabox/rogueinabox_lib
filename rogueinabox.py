@@ -1,4 +1,4 @@
-# Copyright (C) 2017 Andrea Asperti, Carlo De Pieri, Gianmaria Pedrini, Francesco Sovrano
+# Copyright (C) 2017
 #
 # This file is part of Rogueinabox.
 #

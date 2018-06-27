@@ -1,4 +1,3 @@
 [submodule "rogue"]
 	path = rogue
 	url = git@gitlab.com:rogueinabox/rogue.git
-	branch = master

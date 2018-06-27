@@ -14,12 +14,26 @@
   git clone <URL>
   ```
   
-  Then execute:
+  Before executing the next step, you may want to create/activate your python
+  [virtual environment](https://docs.python.org/3/library/venv.html).
+  In order to create it:
+  ```console
+  python3 -m venv /path/to/venv
+  ```
+
+  And to activate it:
+  ```console
+  . /path/to/venv/bin/activate
+  ```
+  Make sure to do this before the next step, because it will update pip
+  and install python dependencies.
+
+  Finally execute:
   ```console
   make install
   ```
   
-  This will pull our Rogue custom build (in a submodule) and build its executable.
+  This will install python dependencies, pull our Rogue custom build (in a submodule) and build its executable.
   
 #### Manual cloning and building
 
@@ -37,6 +51,11 @@
   from within your local repo directory:
   ```console
   git submodule update --init --recursive
+  ```
+  
+  Install python requirements:
+  ```console
+  pip install -r requirements.txt
   ```
   
   After that, you need to enter in our custom Rogue build directory and make it:

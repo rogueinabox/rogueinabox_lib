@@ -22,7 +22,7 @@ class RogueOptions:
     """Rogue command line parameters object for the custom rogue build"""
 
     def __init__(self, use_monsters=True, enable_secrets=True, seed=None, fixed_seed=False, amulet_level=26,
-                 hungertime=1300, max_traps=0):
+                 hungertime=1300, max_traps=0, disable_dark_rooms=False, disable_mazes=False, more_mazes=False, start_level=1):
         """
         :param bool use_monsters:
             whether to enable monsters
@@ -38,6 +38,14 @@ class RogueOptions:
             sets the number of steps after which the rouge becomes faint
         :param int max_traps:
             sets the maximum number of traps
+        :param bool disable_dark_rooms:
+            whether the dark rooms will be present in the game
+        :param bool disable_mazes:
+            whether the mazes will be present in the game
+        :param bool more_mazes:
+            whether to insert many more mazes in every level
+        :param int start_level:
+            which level the game will start at
         """
         self.use_monsters = use_monsters
         self.enable_secrets = enable_secrets
@@ -46,6 +54,10 @@ class RogueOptions:
         self.amulet_level = amulet_level
         self.hungertime = hungertime
         self.max_traps = max_traps
+        self.disable_mazes = disable_mazes
+        self.disable_dark_rooms = disable_dark_rooms
+        self.more_mazes = more_mazes
+        self.start_level = start_level
 
         self._rng = random.Random()
         self._seed = None  # current seed for the next args generation
@@ -60,8 +72,12 @@ class RogueOptions:
     def generate_args(self):
         args= ['--disable-monsters' if not self.use_monsters else '',
                '--disable-secrets' if not self.enable_secrets else '',
+               '--disable-darkrooms' if not self.disable_dark_rooms else '',
+               '--disable-mazes' if not self.disable_mazes else '',
+               '--more-mazes' if not self.more_mazes else '',
                ('--seed=%s' % self._seed) if self._seed is not None else '',
                ('--amulet-level=%s' % self.amulet_level),
+               ('--start-level=%s' % self.start_level),
                ('--hungertime=%s' % self.hungertime),
                ('--max-traps=%s' % self.max_traps)]
         if not self.fixed_seed:

@@ -72,9 +72,9 @@ class RogueOptions:
     def generate_args(self):
         args= ['--disable-monsters' if not self.use_monsters else '',
                '--disable-secrets' if not self.enable_secrets else '',
-               '--disable-darkrooms' if not self.disable_dark_rooms else '',
-               '--disable-mazes' if not self.disable_mazes else '',
-               '--more-mazes' if not self.more_mazes else '',
+               '--disable-darkrooms' if self.disable_dark_rooms else '',
+               '--disable-mazes' if self.disable_mazes else '',
+               '--more-mazes' if self.more_mazes else '',
                ('--seed=%s' % self._seed) if self._seed is not None else '',
                ('--amulet-level=%s' % self.amulet_level),
                ('--start-level=%s' % self.start_level),

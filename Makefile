@@ -35,8 +35,5 @@ submodules-update:
 	git submodule update --remote --recursive
 
 build-rogue:
-	( \
-		cd rogue; \
-		make; \
-		cd ..; \
-	)
+	$(MAKE) -C rogue
+

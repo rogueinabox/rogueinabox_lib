@@ -15,7 +15,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from roguelib_module.rewards import RewardGenerator
+from .base import RewardGenerator
 
 
 class StairsOnly_RewardGenerator(RewardGenerator):

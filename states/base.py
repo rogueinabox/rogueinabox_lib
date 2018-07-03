@@ -144,7 +144,7 @@ class StateGenerator(ABC):
 
         :param list[tuple[int,int]] pos_list:
             positions to be filtered
-        :param roguelib_module.frame_info.RogueFrameInfo frame_info:
+        :param frame_info.RogueFrameInfo frame_info:
             parsed frame where to check if the positions are hidden
 
         :return:
